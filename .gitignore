@@ -1,0 +1,48 @@
+# PowerShell-generated caches
+ModuleAnalysisCache
+ModuleAnalysisCache-*
+
+# Local environment variables and secrets (keep example configuration tracked)
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+
+# Go build, test, and coverage output
+/backend/bin/
+/backend/tmp/
+*.exe
+*.exe~
+*.test
+coverage.out
+coverage.html
+/backend/coverage/
+
+# React dependencies, builds, and tool caches
+node_modules/
+/frontend/dist/
+/frontend/build/
+/frontend/coverage/
+.vite/
+.cache/
+*.tsbuildinfo
+.eslintcache
+
+# Local MongoDB data
+/backend/data/
+/backend/dump/

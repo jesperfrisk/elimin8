@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+bin/
+tmp/
+data/
+dump/
+coverage/
+*.exe
+*.test
+*.out
+*.log
+*.pem
+*.key
