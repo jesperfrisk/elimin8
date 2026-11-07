@@ -42,6 +42,8 @@ node_modules/
 .cache/
 *.tsbuildinfo
 .eslintcache
+/frontend/test-results/
+/frontend/playwright-report/
 
 # Local MongoDB data
 /backend/data/

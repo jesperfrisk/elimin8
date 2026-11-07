@@ -13,6 +13,7 @@ import (
 	"github.com/jesperfrisk/elimin8/backend/internal/config"
 	"github.com/jesperfrisk/elimin8/backend/internal/controllers"
 	"github.com/jesperfrisk/elimin8/backend/internal/database"
+	"github.com/jesperfrisk/elimin8/backend/internal/realtime"
 	"github.com/jesperfrisk/elimin8/backend/internal/repositories/mongodb"
 	"github.com/jesperfrisk/elimin8/backend/internal/services"
 )
@@ -48,6 +49,25 @@ func run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health/live", health.Liveness)
 	mux.HandleFunc("GET /api/health/ready", health.Readiness)
+	gameRepo := mongodb.NewGameRepository(db)
+	indexCtx, indexCancel := context.WithTimeout(ctx, 10*time.Second)
+	err = gameRepo.EnsureIndexes(indexCtx)
+	indexCancel()
+	if err != nil {
+		return errors.New("game database indexes could not be initialized")
+	}
+	gameService := services.NewGameService(gameRepo)
+	broker, err := realtime.New(gameService)
+	if err != nil {
+		return errors.New("MQTT broker could not be initialized")
+	}
+	defer broker.Close()
+	gameService.Notify = broker.Notify
+	outboxCtx, stopOutbox := context.WithCancel(ctx)
+	defer stopOutbox()
+	go broker.RunOutbox(outboxCtx, gameRepo)
+	controllers.NewGameController(gameService).Register(mux)
+	mux.Handle("GET /api/mqtt", broker)
 
 	server := &http.Server{
 		Addr: cfg.HTTPAddress, Handler: mux,
