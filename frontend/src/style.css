@@ -1,0 +1,15 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #f0f3e9;
+  background: #17251f;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body { margin: 0; }
+main { max-width: 44rem; margin: 15vh auto; padding: 2rem; }
+.eyebrow { color: #bce67a; text-transform: uppercase; letter-spacing: 0.12em; }
+h1 { font-size: clamp(3.5rem, 12vw, 6rem); margin: 0; }
+p { line-height: 1.6; }
+.intro { font-size: 1.35rem; }
+.status { margin-top: 3rem; padding: 1rem; border: 1px solid #6d8975; border-radius: 0.5rem; }

@@ -10,6 +10,31 @@ When a player is eliminated, their killer inherits their victim's target and mis
 
 Elimin8 manages secret assignments, teams, eliminations, withdrawals, timers, and game progression while keeping sensitive game information hidden.
 
+## Run Locally
+
+Install Docker with Docker Compose v2 and start Docker Desktop (using Linux containers on Windows). From the repository root:
+
+```sh
+docker compose up --build --wait
+```
+
+- Frontend: http://localhost:3000
+- Backend readiness: http://localhost:8080/api/health/ready
+- MongoDB: `mongodb://localhost:27017`, database `elimin8`
+
+The current scaffold includes a React starter screen, a Go API with health endpoints, and MongoDB connectivity. Game features are still under development. Docker handles the Go and Node build tools; no local installation is required.
+
+Compose waits for MongoDB and the API to become healthy before starting dependent services. MongoDB data is stored in a named volume and survives container replacement. Host ports are bound to localhost; this configuration is for local development.
+
+```sh
+docker compose logs -f
+docker compose down
+```
+
+`docker compose down` preserves database data. To deliberately delete all local database data, use `docker compose down --volumes`.
+
+See [backend setup](backend/README.md) and [frontend setup](frontend/README.md) for architecture, configuration, and development commands.
+
 ## 🎮 How It Works
 
 ### 1. Create a Game
