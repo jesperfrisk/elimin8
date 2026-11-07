@@ -22,9 +22,11 @@ docker compose up --build --wait
 - Backend readiness: http://localhost:8080/api/health/ready
 - MongoDB: `mongodb://localhost:27017`, database `elimin8`
 
-The current scaffold includes a React starter screen, a Go API with health endpoints, and MongoDB connectivity. Game features are still under development. Docker handles the Go and Node build tools; no local installation is required.
+The app includes organizer and player pages, code-based game access, MongoDB persistence, and live lobby/game updates over MQTT. Docker handles the Go and Node build tools; no local installation is required.
 
-Compose waits for MongoDB and the API to become healthy before starting dependent services. MongoDB data is stored in a named volume and survives container replacement. Host ports are bound to localhost; this configuration is for local development.
+Compose waits for MongoDB and the API to become healthy before starting dependent services. MongoDB data is stored in a named volume and survives container replacement. The frontend listens on all host interfaces on port 3000; the backend and MongoDB host ports remain bound to localhost.
+
+Devices on the same network can open `http://<your-computer-LAN-IP>:3000`. On Windows, use `ipconfig` to find the IPv4 address of your Wi-Fi or Ethernet adapter. API requests and MQTT connections go through the frontend automatically. If Windows Firewall blocks access, allow inbound TCP port 3000 from `LocalSubnet` on the active network profile. This configuration is for development on a trusted network.
 
 ```sh
 docker compose logs -f
@@ -34,6 +36,20 @@ docker compose down
 `docker compose down` preserves database data. To deliberately delete all local database data, use `docker compose down --volumes`.
 
 See [backend setup](backend/README.md) and [frontend setup](frontend/README.md) for architecture, configuration, and development commands.
+
+## Available Now: Games and Invitations
+
+1. Open **Organize** and create a game with a name and optional description. Save the private organizer management code shown once after creation.
+2. Add player names to the lobby, one per line. Each roster entry receives its own eight-character private code. Copy each invitation and share it with that player only.
+3. Players open **Play** and enter the shared game invitation code plus their private player code. The organizer sees each player change from **Invited** to **Joined** immediately.
+4. Start the game when ready. Only players who joined before the start are included. Closing a browser does not undo a join. Included players can return using their codes; unjoined invitees cannot join after the start.
+5. End a lobby or active game using the organizer controls. Ended games remain available to their organizer and previously admitted players.
+
+Games can be created, started, and ended with no players. This release does not assign missions, victims, teams, or winners. The rules below describe the planned complete game.
+
+Player and organizer codes authenticate access across devices. Private codes are shown only when generated; an organizer can reset a lost player code, invalidating that player's previous code and access credentials. Browser tabs remember temporary access for up to 12 hours, without saving private codes. Keep the organizer management code: account recovery is not implemented.
+
+Lobby and lifecycle updates use MQTT over same-origin WebSockets, with no frontend polling. The Go API embeds the broker; no extra broker port or service is required. A mutex serializes game mutations inside the API, and atomic MongoDB revision checks protect concurrent joins and starts across instances. See the backend README for realtime deployment constraints.
 
 ## 🎮 How It Works
 
@@ -315,8 +331,8 @@ All participants can see the public Kill Board, but it must not reveal any secre
 
 ### Phase 1: MVP
 
-- [ ] Create games
-- [ ] Join games using invitation codes
+- [x] Create games
+- [x] Join games using invitation codes
 - [ ] Configure teams manually or randomly
 - [ ] Configure missions
 - [ ] Generate team-safe victim assignments
