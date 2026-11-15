@@ -68,8 +68,9 @@ func TestLobbyMissionsPersistenceIsolationAndPrivacy(t *testing.T) {
 }
 
 func TestLobbyMissionsValidationIsAtomicAndSelectionLocks(t *testing.T) {
-	s, repo, _, owner, _ := setup(t)
+	s, repo, game, owner, players := setup(t)
 	ctx := context.Background()
+	joinPlayers(t, s, game, players)
 	before, _ := repo.Get(ctx, owner.GameID)
 	for _, texts := range [][]string{
 		nil, {}, {"Valid", " "}, {"Valid", strings.Repeat("x", 1001)},

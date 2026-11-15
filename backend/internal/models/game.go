@@ -35,6 +35,7 @@ type Player struct {
 	JoinedAt          *time.Time `bson:"joinedAt,omitempty"`
 	Included          bool       `bson:"included"`
 	Mission           string     `bson:"mission,omitempty"`
+	VictimID          string     `bson:"victimId,omitempty"`
 }
 
 type Access struct {
@@ -46,11 +47,18 @@ type Access struct {
 }
 
 type PlayerView struct {
-	ID       string     `json:"id"`
-	Name     string     `json:"name"`
-	JoinedAt *time.Time `json:"joinedAt"`
-	Included bool       `json:"included"`
-	Mission  string     `json:"mission,omitempty"`
+	ID       string      `json:"id"`
+	Name     string      `json:"name"`
+	JoinedAt *time.Time  `json:"joinedAt"`
+	Included bool        `json:"included"`
+	Mission  string      `json:"mission,omitempty"`
+	Victim   *VictimView `json:"victim,omitempty"`
+}
+
+// VictimView exposes identity only, never the victim's private assignments.
+type VictimView struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type GameView struct {

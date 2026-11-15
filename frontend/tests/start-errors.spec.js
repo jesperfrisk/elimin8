@@ -9,7 +9,7 @@ test("start errors stay visible beside controls and explain how to recover", asy
   const owner = await page.evaluate(() => JSON.parse(sessionStorage.getItem("elimin8.access.v1"))[0]);
   const base = `/api/games/${owner.game.id}`;
   const headers = { Authorization: `Bearer ${owner.token}` };
-  const roster = await (await request.post(`${base}/players`, { headers, data: { names: ["Alice"] } })).json();
+  const roster = await (await request.post(`${base}/players`, { headers, data: { names: ["Alice", "Bob"] } })).json();
   await request.post("/api/access", { data: { invitationCode: owner.game.invitationCode, code: roster.players[0].code, role: "player" } });
   await expect(page.getByRole("row").filter({ hasText: "Alice" }).getByText("Joined", { exact: true })).toBeVisible();
   page.on("dialog", (dialog) => dialog.accept());
@@ -21,6 +21,9 @@ test("start errors stay visible beside controls and explain how to recover", asy
     await expect(alert).toBeInViewport();
     await expect(page.getByText("Lobby open", { exact: true })).toBeVisible();
   }
+  await startAndExpect("At least two players must join the lobby");
+  await request.post("/api/access", { data: { invitationCode: owner.game.invitationCode, code: roster.players[1].code, role: "player" } });
+  await expect(page.getByRole("row").filter({ hasText: "Bob" }).getByText("Joined", { exact: true })).toBeVisible();
   await startAndExpect("Add or enable at least one mission");
   const added = await (await request.post(`${base}/missions`, { headers, data: { texts: ["Disabled task"] } })).json();
   await request.patch(`${base}/missions/${added.missions[0].id}`, { headers, data: { enabled: false } });

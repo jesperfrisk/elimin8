@@ -549,6 +549,7 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
                   ? "Add your players, then give each one their private code."
                   : "The roster is closed. Only players who joined before the start participate."}
               </p>
+              {lobby && game.joinedCount < 2 && <p className="muted">At least two players must join before the game can start.</p>}
             </div>
             <div className="actions">
               {lobby && (
@@ -600,6 +601,7 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
                         <th>Player</th>
                         <th>Status</th>
                         {!lobby && <th>Mission</th>}
+                        {!lobby && <th>Victim</th>}
                         <th>
                           <span className="sr-only">Actions</span>
                         </th>
@@ -625,6 +627,7 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
                             </span>
                           </td>
                           {!lobby && <td className="assigned-mission">{p.mission || "—"}</td>}
+                          {!lobby && <td>{p.victim?.name || "—"}</td>}
                           <td>
                             {game.status !== "ended" &&
                               (lobby || p.included) && (
@@ -783,9 +786,16 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
             {lobby
               ? "Your organizer will start the game when everyone is ready. You can close this page and return with your codes—your place stays joined."
               : active
-                ? "You’re part of the active game. Victim assignments are not available yet."
+                ? "The game is underway. Keep your assignments secret."
                 : "Thanks for being part of it. You can return to your games or join another lobby."}
           </p>
+          {!lobby && game.me?.victim && (
+            <section className="private-mission" aria-label="Your victim">
+              <h3>Your victim</h3>
+              <p>{game.me.victim.name}</p>
+              <small>Complete your mission with this player.</small>
+            </section>
+          )}
           {!lobby && game.me?.mission && (
             <section className="private-mission" aria-label="Your mission">
               <h3>Your mission</h3>

@@ -40,9 +40,9 @@ test("organizer roster, private entry, live start/end, and excluded invitees", a
   await page.getByLabel("Mission texts", { exact: true }).fill("Get a high-five.");
   await page.getByRole("button", { name: "Add missions +", exact: true }).click();
   await expect(page.getByText("1 enabled / 1 total", { exact: true })).toBeVisible();
-  await page.getByLabel("Player names").fill("Alice\nBob");
+  await page.getByLabel("Player names").fill("Alice\nBob\nCharlie");
   await page.getByRole("button", { name: "Add to roster" }).click();
-  await expect(page.locator(".issued-code")).toHaveCount(2);
+  await expect(page.locator(".issued-code")).toHaveCount(3);
   const aliceCode = await page
     .locator(".issued-code")
     .filter({ hasText: "Alice" })
@@ -53,6 +53,8 @@ test("organizer roster, private entry, live start/end, and excluded invitees", a
     .filter({ hasText: "Bob" })
     .locator("code")
     .textContent();
+  const charlieCode = await page.locator(".issued-code").filter({ hasText: "Charlie" }).locator("code").textContent();
+  expect((await request.post("/api/access", { data: { invitationCode: invitation, code: charlieCode, role: "player" } })).status()).toBe(200);
   const playerContext = await browser.newContext();
   const player = await playerContext.newPage();
   player.on("pageerror", (error) => consoleErrors.push(error.message));

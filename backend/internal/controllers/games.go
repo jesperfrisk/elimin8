@@ -64,6 +64,9 @@ func gameError(w http.ResponseWriter, err error) {
 	case errors.Is(err, services.ErrNotFound):
 		status = 404
 		message = err.Error()
+	case errors.Is(err, services.ErrTooFewPlayers):
+		status = 409
+		message = "At least two players must join the lobby before you can start the game. Invited players who have not joined do not count."
 	case errors.Is(err, services.ErrNoMissions):
 		status = 409
 		message = "Add or enable at least one mission before starting with joined players."

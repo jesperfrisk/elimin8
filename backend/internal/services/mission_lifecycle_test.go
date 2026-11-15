@@ -76,9 +76,7 @@ func TestMissionAssignmentPrivacyAndPersistence(t *testing.T) {
 func TestStartRequiresEnabledMissionForJoinedPlayers(t *testing.T) {
 	s, repo, admission, owner, players := setup(t)
 	ctx := context.Background()
-	if _, err := s.Login(ctx, admission.Game.InvitationCode, players[0].Code, "player"); err != nil {
-		t.Fatal(err)
-	}
+	joinPlayers(t, s, admission, players)
 	for _, disabled := range []bool{false, true} {
 		if disabled {
 			missions, err := s.AddMissions(ctx, owner, []string{"Disabled"})
@@ -94,7 +92,7 @@ func TestStartRequiresEnabledMissionForJoinedPlayers(t *testing.T) {
 			t.Fatalf("start without enabled missions: %v", err)
 		}
 		after, _ := repo.Get(ctx, owner.GameID)
-		if after.Status != "lobby" || after.StartedAt != nil || after.Players[0].Included || after.Revision != before.Revision || after.Players[0].Mission != "" {
+		if after.Status != "lobby" || after.StartedAt != nil || after.Players[0].Included || after.Revision != before.Revision || after.Players[0].Mission != "" || after.Players[0].VictimID != "" {
 			t.Fatal("failed start partially changed game")
 		}
 	}
@@ -104,9 +102,7 @@ func TestStartRetriesAssignmentWithLatestMissionConfiguration(t *testing.T) {
 	for _, disableAll := range []bool{false, true} {
 		s, repo, admission, owner, players := setup(t)
 		ctx := context.Background()
-		if _, err := s.Login(ctx, admission.Game.InvitationCode, players[0].Code, "player"); err != nil {
-			t.Fatal(err)
-		}
+		joinPlayers(t, s, admission, players)
 		if _, err := s.AddMissions(ctx, owner, []string{"Before", "After"}); err != nil {
 			t.Fatal(err)
 		}

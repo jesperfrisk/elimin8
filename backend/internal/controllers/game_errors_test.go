@@ -16,6 +16,7 @@ func TestGameStartErrors(t *testing.T) {
 		status  int
 		message string
 	}{
+		{"too few joined players", services.ErrTooFewPlayers, 409, "At least two players must join the lobby before you can start the game. Invited players who have not joined do not count."},
 		{"no enabled missions", services.ErrNoMissions, 409, "Add or enable at least one mission before starting with joined players."},
 		{"already started", services.ErrAlreadyStarted, 409, "This game has already started. Refresh the game to see its current state."},
 		{"ended", services.ErrGameEnded, 409, "This game has ended and cannot be started again. Create a new game to play again."},

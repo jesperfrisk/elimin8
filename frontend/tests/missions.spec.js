@@ -61,10 +61,11 @@ test("batch lobby missions, disable and re-enable, recover a failed batch, and l
   const view = await (await request.get(base, { headers })).json();
   expect(view.missions.filter((m) => !m.enabled).map((m) => m.text)).toEqual(["Say pineapple."]);
   const missionID = view.missions[0].id;
-  const roster = await (await request.post(`${base}/players`, { headers, data: { names: ["Alice"] } })).json();
+  const roster = await (await request.post(`${base}/players`, { headers, data: { names: ["Alice", "Bob"] } })).json();
   const player = await (await request.post("/api/access", { data: {
     invitationCode: owner.game.invitationCode, code: roster.players[0].code, role: "player",
   } })).json();
+  await request.post("/api/access", { data: { invitationCode: owner.game.invitationCode, code: roster.players[1].code, role: "player" } });
   expect(player.game.missions).toBeUndefined();
   const playerHeaders = { Authorization: `Bearer ${player.token}` };
   expect((await request.post(`${base}/missions`, { headers: playerHeaders, data: { texts: ["Forbidden"] } })).status()).toBe(403);

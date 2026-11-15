@@ -245,6 +245,12 @@ func View(g *models.Game, a models.Access) models.GameView {
 		missions := append([]models.LobbyMission{}, g.Missions...)
 		v.Missions = &missions
 	}
+	identities := make(map[string]models.VictimView, len(g.Players))
+	for _, p := range g.Players {
+		if p.Included {
+			identities[p.ID] = models.VictimView{ID: p.ID, Name: p.Name}
+		}
+	}
 	for _, p := range g.Players {
 		if p.JoinedAt != nil {
 			v.JoinedCount++
@@ -255,6 +261,9 @@ func View(g *models.Game, a models.Access) models.GameView {
 		pv := models.PlayerView{ID: p.ID, Name: p.Name, JoinedAt: p.JoinedAt, Included: p.Included}
 		if g.Status != "lobby" && p.Included {
 			pv.Mission = p.Mission
+			if victim, ok := identities[p.VictimID]; ok {
+				pv.Victim = &victim
+			}
 		}
 		if a.PlayerID == "" {
 			v.Players = append(v.Players, pv)
@@ -392,6 +401,9 @@ func (s *GameService) Transition(ctx context.Context, a models.Access, action st
 			}
 			if g.Status != "lobby" {
 				return ErrAlreadyStarted
+			}
+			if err := assignVictims(g); err != nil {
+				return err
 			}
 			if err := assignMissions(g); err != nil {
 				return err

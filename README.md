@@ -46,7 +46,7 @@ See [backend setup](backend/README.md) and [frontend setup](frontend/README.md) 
 5. Start the game when ready. Only players who joined before the start are included, and mission configuration locks. Closing a browser does not undo a join. Included players can return using their codes; unjoined invitees cannot join after the start.
 6. End a lobby or active game using the organizer controls. Ended games remain available to their organizer and previously admitted players.
 
-Starting gives each joined player one private, randomly assigned mission. Every enabled mission entry is used once before any entry is reused; each new round is shuffled again. Disabled entries are excluded. If players have joined, at least one mission must be enabled to start. Empty games can still start without missions. Assignments persist when players reconnect. Victims, teams, and winners remain future work. The rules below describe the planned complete game.
+Starting requires at least two joined players and one enabled mission. Each participant receives a private, randomly assigned mission and victim. Victims form one shuffled circle: everyone has one victim and one hunter, and nobody targets themselves. Every enabled mission entry is used once before any entry is reused; each new round is shuffled again. Disabled entries and unjoined invitees are excluded. Assignments persist when players reconnect. Teams, eliminations, and winners remain future work. The rules below describe the planned complete game.
 
 Player and organizer codes authenticate access across devices. Private codes are shown only when generated; an organizer can reset a lost player code, invalidating that player's previous code and access credentials. Browser tabs remember temporary access for up to 12 hours, without saving private codes. Keep the organizer management code: account recovery is not implemented.
 
@@ -337,6 +337,7 @@ All participants can see the public Kill Board, but it must not reveal any secre
 - [ ] Configure teams manually or randomly
 - [x] Configure missions
 - [x] Randomly assign private missions, exhausting enabled entries before reuse
+- [x] Assign private victims in one circle without self-targets
 - [ ] Generate team-safe victim assignments
 - [ ] Reveal private assignments when games start
 - [ ] Implement mutual elimination confirmation
