@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { request, readAccess, rememberAccess, forgetAccess } from "./api";
 import { useGame } from "./useGame";
+import { LobbyMissions } from "./LobbyMissions";
+import { gameActionError } from "./gameActionError";
 import "./style.css";
 
 function useRoute() {
@@ -397,6 +399,14 @@ function CopyButton({ text, label = "Copy" }) {
 function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
   const { game, connection, error, refresh } = useGame(access);
   const [issued, setIssued] = useState([]);
+  const [transitionError, setTransitionError] = useState(null);
+  const transitionErrorRef = useRef(null);
+  useEffect(() => {
+    if (transitionError) {
+      transitionErrorRef.current?.focus({ preventScroll: true });
+      transitionErrorRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [transitionError]);
   const organizer = access.role === "organizer";
   const players = game.players || [];
   const lobby = game.status === "lobby";
@@ -412,12 +422,23 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
         ? `Start with ${game.joinedCount} joined player(s)? ${game.invitedCount - game.joinedCount} invited player(s) have not joined and will be excluded.`
         : "End this game? This cannot be undone.";
     if (!window.confirm(message)) return;
-    action(() =>
-      request(`/api/games/${game.id}/${name}`, {
-        method: "POST",
-        token: access.token,
-      }),
-    );
+    run(async () => {
+      setTransitionError(null);
+      try {
+        await request(`/api/games/${game.id}/${name}`, {
+          method: "POST",
+          token: access.token,
+        });
+      } catch (e) {
+        setTransitionError({ message: gameActionError(e, name), reenter: [401, 403, 404].includes(e.status) });
+        return;
+      }
+      try {
+        await refresh();
+      } catch {
+        setTransitionError({ message: `The game ${name === "start" ? "started" : "ended"}, but its latest state could not be loaded. Check your connection and refresh the game.` });
+      }
+    });
   }
   if (!game.createdAt) {
     return (
@@ -528,6 +549,7 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
                   ? "Add your players, then give each one their private code."
                   : "The roster is closed. Only players who joined before the start participate."}
               </p>
+              {lobby && game.joinedCount < 2 && <p className="muted">At least two players must join before the game can start.</p>}
             </div>
             <div className="actions">
               {lobby && (
@@ -546,6 +568,23 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
               )}
             </div>
           </div>
+          {transitionError && (
+            <div className="alert game-action-error" role="alert" tabIndex={-1} ref={transitionErrorRef}>
+              <p>{transitionError.message}</p>
+              <div className="actions">
+                <button className="secondary compact" disabled={busy} onClick={() => run(async () => {
+                  try {
+                    await refresh();
+                    setTransitionError(null);
+                  } catch {
+                    setTransitionError({ message: "Could not refresh the game. Check your connection, or reopen the game with your organizer codes.", reenter: true });
+                  }
+                })}>Refresh game</button>
+                {transitionError.reenter && <a href="#/organizer">Open organizer desk</a>}
+                <button className="text-button" onClick={() => setTransitionError(null)}>Dismiss</button>
+              </div>
+            </div>
+          )}
           <div className={lobby ? "roster-layout" : ""}>
             <section className="panel roster" aria-label="Player roster">
               {!players.length ? (
@@ -561,6 +600,8 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
                       <tr>
                         <th>Player</th>
                         <th>Status</th>
+                        {!lobby && <th>Mission</th>}
+                        {!lobby && <th>Victim</th>}
                         <th>
                           <span className="sr-only">Actions</span>
                         </th>
@@ -585,6 +626,8 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
                                   : "Not included"}
                             </span>
                           </td>
+                          {!lobby && <td className="assigned-mission">{p.mission || "—"}</td>}
+                          {!lobby && <td>{p.victim?.name || "—"}</td>}
                           <td>
                             {game.status !== "ended" &&
                               (lobby || p.included) && (
@@ -687,6 +730,7 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
               </section>
             )}
           </div>
+          <LobbyMissions game={game} access={access} action={action} busy={busy} />
           {!!issued.length && (
             <section className="secret-panel">
               <div className="section-heading">
@@ -742,9 +786,23 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
             {lobby
               ? "Your organizer will start the game when everyone is ready. You can close this page and return with your codes—your place stays joined."
               : active
-                ? "You’re part of the active game. No missions or victims are assigned yet."
+                ? "The game is underway. Keep your assignments secret."
                 : "Thanks for being part of it. You can return to your games or join another lobby."}
           </p>
+          {!lobby && game.me?.victim && (
+            <section className="private-mission" aria-label="Your victim">
+              <h3>Your victim</h3>
+              <p>{game.me.victim.name}</p>
+              <small>Complete your mission with this player.</small>
+            </section>
+          )}
+          {!lobby && game.me?.mission && (
+            <section className="private-mission" aria-label="Your mission">
+              <h3>Your mission</h3>
+              <p>{game.me.mission}</p>
+              <small>Keep this mission to yourself.</small>
+            </section>
+          )}
           {lobby && (
             <p className="muted">
               This page updates automatically when your organizer starts or ends

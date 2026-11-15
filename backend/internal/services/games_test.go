@@ -34,6 +34,15 @@ func setup(t *testing.T) (*services.GameService, *testutil.Memory, models.Admiss
 	return s, repo, a, owner, players
 }
 
+func joinPlayers(t *testing.T, s *services.GameService, game models.Admission, players []models.IssuedPlayer) {
+	t.Helper()
+	for _, p := range players {
+		if _, err := s.Login(context.Background(), game.Game.InvitationCode, p.Code, "player"); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestLifecycleAndPrivacy(t *testing.T) {
 	s, _, game, owner, players := setup(t)
 	ctx := context.Background()
@@ -61,6 +70,14 @@ func TestLifecycleAndPrivacy(t *testing.T) {
 	if _, err = s.AddPlayers(ctx, a, []string{"Mallory"}); !errors.Is(err, services.ErrForbidden) {
 		t.Fatalf("player edited roster: %v", err)
 	}
+	if _, err = s.AddMissions(ctx, owner, []string{"Get a high-five."}); err != nil {
+		t.Fatal(err)
+	}
+	additional, err := s.AddPlayers(ctx, owner, []string{"Charlie"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	joinPlayers(t, s, game, additional)
 	if err = s.Transition(ctx, owner, "start"); err != nil {
 		t.Fatal(err)
 	}
@@ -123,6 +140,14 @@ func TestPrivateCodeResetAndOrganizerLogin(t *testing.T) {
 func TestStartHoldsLockUntilCommitted(t *testing.T) {
 	s, repo, game, owner, players := setup(t)
 	ctx := context.Background()
+	joinPlayers(t, s, game, players)
+	if _, err := s.AddMissions(ctx, owner, []string{"Get a high-five."}); err != nil {
+		t.Fatal(err)
+	}
+	late, err := s.AddPlayers(ctx, owner, []string{"Late"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	entered, release := make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	repo.BeforeSave = func(g *models.Game) {
@@ -134,7 +159,7 @@ func TestStartHoldsLockUntilCommitted(t *testing.T) {
 	go func() { started <- s.Transition(ctx, owner, "start") }()
 	<-entered
 	joined := make(chan error, 1)
-	go func() { _, err := s.Login(ctx, game.Game.InvitationCode, players[0].Code, "player"); joined <- err }()
+	go func() { _, err := s.Login(ctx, game.Game.InvitationCode, late[0].Code, "player"); joined <- err }()
 	select {
 	case err := <-joined:
 		t.Fatalf("join finished while start held lock: %v", err)
@@ -148,7 +173,7 @@ func TestStartHoldsLockUntilCommitted(t *testing.T) {
 		t.Fatalf("join slipped past start: %v", err)
 	}
 	g, _ := repo.Get(ctx, game.Game.ID)
-	if g.Players[0].JoinedAt != nil || g.Players[0].Included {
+	if g.Players[2].JoinedAt != nil || g.Players[2].Included || g.Players[2].VictimID != "" {
 		t.Fatal("late player included")
 	}
 }
@@ -157,6 +182,14 @@ func TestOtherInstanceJoinForcesStartToRetry(t *testing.T) {
 	s, repo, game, owner, players := setup(t)
 	other := services.NewGameService(repo)
 	ctx := context.Background()
+	joinPlayers(t, s, game, players)
+	late, err := s.AddPlayers(ctx, owner, []string{"Late"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AddMissions(ctx, owner, []string{"Get a high-five."}); err != nil {
+		t.Fatal(err)
+	}
 	entered, release := make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	repo.BeforeSave = func(g *models.Game) {
@@ -167,7 +200,7 @@ func TestOtherInstanceJoinForcesStartToRetry(t *testing.T) {
 	started := make(chan error, 1)
 	go func() { started <- s.Transition(ctx, owner, "start") }()
 	<-entered
-	if _, err := other.Login(ctx, game.Game.InvitationCode, players[0].Code, "player"); err != nil {
+	if _, err := other.Login(ctx, game.Game.InvitationCode, late[0].Code, "player"); err != nil {
 		t.Fatal(err)
 	}
 	close(release)
@@ -175,7 +208,7 @@ func TestOtherInstanceJoinForcesStartToRetry(t *testing.T) {
 		t.Fatal(err)
 	}
 	g, _ := repo.Get(ctx, game.Game.ID)
-	if !g.Players[0].Included || g.Players[1].Included {
+	if !g.Players[0].Included || !g.Players[1].Included || !g.Players[2].Included || g.Players[2].VictimID == "" {
 		t.Fatal("start failed to retry with latest joined roster")
 	}
 }
@@ -188,8 +221,8 @@ func TestEmptyGameAndCancelledLobby(t *testing.T) {
 		t.Fatal(err)
 	}
 	owner, _, _ := s.Authorize(ctx, game.Token)
-	if err = s.Transition(ctx, owner, "start"); err != nil {
-		t.Fatal(err)
+	if err = s.Transition(ctx, owner, "start"); !errors.Is(err, services.ErrTooFewPlayers) {
+		t.Fatalf("empty game started: %v", err)
 	}
 	if err = s.Transition(ctx, owner, "end"); err != nil {
 		t.Fatal(err)

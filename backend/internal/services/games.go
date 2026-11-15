@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -17,12 +18,14 @@ import (
 )
 
 var (
-	ErrNotFound     = errors.New("game not found")
-	ErrConflict     = errors.New("game changed; please try again")
-	ErrUnauthorized = errors.New("invalid or expired credentials")
-	ErrForbidden    = errors.New("organizer access required")
-	ErrLobbyClosed  = errors.New("this game is no longer accepting players")
-	ErrInvalid      = errors.New("invalid input")
+	ErrNotFound       = errors.New("game not found")
+	ErrConflict       = errors.New("game changed; please try again")
+	ErrUnauthorized   = errors.New("invalid or expired credentials")
+	ErrForbidden      = errors.New("organizer access required")
+	ErrLobbyClosed    = errors.New("this game is no longer accepting players")
+	ErrInvalid        = errors.New("invalid input")
+	ErrAlreadyStarted = fmt.Errorf("game has already started: %w", ErrConflict)
+	ErrGameEnded      = fmt.Errorf("game has ended: %w", ErrConflict)
 )
 
 type GameRepository interface {
@@ -238,6 +241,16 @@ func (s *GameService) Authorize(ctx context.Context, token string) (models.Acces
 
 func View(g *models.Game, a models.Access) models.GameView {
 	v := models.GameView{ID: g.ID, Name: g.Name, Description: g.Description, InvitationCode: g.InvitationCode, Status: g.Status, Revision: g.Revision, CreatedAt: g.CreatedAt, StartedAt: g.StartedAt, EndedAt: g.EndedAt, InvitedCount: len(g.Players)}
+	if a.PlayerID == "" {
+		missions := append([]models.LobbyMission{}, g.Missions...)
+		v.Missions = &missions
+	}
+	identities := make(map[string]models.VictimView, len(g.Players))
+	for _, p := range g.Players {
+		if p.Included {
+			identities[p.ID] = models.VictimView{ID: p.ID, Name: p.Name}
+		}
+	}
 	for _, p := range g.Players {
 		if p.JoinedAt != nil {
 			v.JoinedCount++
@@ -246,6 +259,12 @@ func View(g *models.Game, a models.Access) models.GameView {
 			v.ParticipantCount++
 		}
 		pv := models.PlayerView{ID: p.ID, Name: p.Name, JoinedAt: p.JoinedAt, Included: p.Included}
+		if g.Status != "lobby" && p.Included {
+			pv.Mission = p.Mission
+			if victim, ok := identities[p.VictimID]; ok {
+				pv.Victim = &victim
+			}
+		}
 		if a.PlayerID == "" {
 			v.Players = append(v.Players, pv)
 		}
@@ -377,8 +396,17 @@ func (s *GameService) Transition(ctx context.Context, a models.Access, action st
 		now := time.Now().UTC()
 		switch action {
 		case "start":
+			if g.Status == "ended" {
+				return ErrGameEnded
+			}
 			if g.Status != "lobby" {
-				return ErrConflict
+				return ErrAlreadyStarted
+			}
+			if err := assignVictims(g); err != nil {
+				return err
+			}
+			if err := assignMissions(g); err != nil {
+				return err
 			}
 			g.Status = "active"
 			g.StartedAt = &now

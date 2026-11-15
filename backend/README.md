@@ -1,6 +1,6 @@
 # Elimin8 Backend
 
-The backend is a Go HTTP API backed by MongoDB, with an embedded Mochi MQTT broker for realtime updates. It currently manages games, organizer-owned rosters, private-code access, joining, starting, and ending. Teams, secret assignments, eliminations, timers, and results remain future work.
+The backend is a Go HTTP API backed by MongoDB, with an embedded Mochi MQTT broker for realtime updates. It currently manages games, organizer-owned rosters, private-code access, lobby missions, private mission and victim assignment, joining, starting, and ending. Teams, eliminations, timers, and results remain future work.
 
 ## Structure
 
@@ -73,6 +73,14 @@ MongoDB currently stores two collections:
 - `games`: game details, unique invitation code, organizer-code hash, lifecycle timestamps, embedded player roster, revision, and last published revision. Each player stores their name, private-code hash, credential version, joined timestamp, and inclusion flag.
 - `game_access`: hashed temporary bearer tokens, scoped game/player identity, credential version, and expiry. A TTL index removes expired entries; authorization also checks expiry directly.
 
+Game documents also embed lobby mission candidates (`id`, `text`, `enabled`). They have no shared pool, separate collection, or lifecycle outside their game. IDs support lobby controls only. Starting copies one randomly selected mission text into each joined player's `mission` field. Every enabled entry is used once before reuse; each round uses a fresh Fisher–Yates shuffle with unbiased cryptographic random indices. Repeated text represents separate entries. Disabled entries and unjoined invitees are excluded. Starting requires at least two joined players and one enabled mission; failure returns HTTP 409 with an actionable error.
+
+Victim assignment shuffles the joined roster into a single circle, storing the next participant's ID in each player's `victimId`. Each participant has exactly one victim and one hunter, with no self-targets or smaller disconnected circles. Player IDs distinguish participants even when names match. Teams are not implemented yet.
+
+Missions, victims, participant inclusion, and active status commit in the same revision-checked game write. Concurrent configuration changes or joins trigger a retry against current state. Failed starts save no partial assignments, and subsequent start requests cannot reroll a started game. Assignments survive reconnects, code resets, and ending the game. Each player view includes only their own `me.mission` and `me.victim` after the start; `victim` contains only `id` and `name`, never that victim's assignments. Organizer roster entries include all pairings. Lobby responses omit assignments. MQTT notifications contain no assignments and trigger authorized view refreshes.
+
+Organizers add up to 100 missions per request, each with up to 1,000 Unicode characters and no internal line breaks. There is no small total-mission cap; the existing game-document size limit applies. New entries are enabled. Disabling retains the entry so it can be re-enabled. All mission changes require organizer access and lobby status, and use the existing atomic revision checks and MQTT invalidations. Only organizer views include mission configuration. Existing game documents without missions are treated as empty.
+
 Startup creates a unique invitation-code index and the access-token TTL index. Game documents are created by API requests; no seed data or manual database migration is necessary.
 
 All game mutations take a per-game mutex from a bounded lock pool. Persistence uses an atomic `updateOne` filtered by game ID and previous revision. If another instance changes the game, the service reloads and rechecks the rules before retrying. Starting selects joined players and sets the active status in the same write, so a concurrent join either commits first and is included or is rejected after the start. MongoDB is the final concurrency authority.
@@ -93,7 +101,7 @@ See the [project README](../README.md) for the complete game rules and roadmap.
 
 ## Current Status
 
-Game lifecycle, organizer rosters, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented. Missions and victim assignments are deliberately absent.
+Game lifecycle, organizer rosters, lobby mission configuration, private random mission and victim assignment, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented. Eliminations, withdrawals, and teams remain future work.
 
 ## Game API
 
@@ -104,7 +112,9 @@ Game lifecycle, organizer rosters, private-code authentication, authorized MQTT 
 | GET | `/api/games/{id}` | Read the caller's authorized view |
 | POST | `/api/games/{id}/players` | Organizer: add `{ "names": ["Alice", "Bob"] }`; returns generated private codes once |
 | POST | `/api/games/{id}/players/{player}/code` | Organizer: reset a player's code and revoke prior credentials |
-| POST | `/api/games/{id}/start` | Organizer: atomically freeze joined participants and activate the lobby |
+| POST | `/api/games/{id}/missions` | Organizer, lobby only: add `{ "texts": ["Get a high-five.", "Say pineapple."] }`; returns enabled mission entries |
+| PATCH | `/api/games/{id}/missions/{mission}` | Organizer, lobby only: set `{ "enabled": false }` or `{ "enabled": true }` |
+| POST | `/api/games/{id}/start` | Organizer: require two joined players and an enabled mission, atomically assign missions and a victim circle, freeze participants, and activate the lobby |
 | POST | `/api/games/{id}/end` | Organizer: end a lobby or active game permanently |
 | GET (upgrade) | `/api/mqtt` | Authenticated MQTT over WebSockets |
 
