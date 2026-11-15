@@ -37,6 +37,8 @@ func (c *GameController) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/games/{id}/players/{player}/code", c.resetCode)
 	mux.HandleFunc("POST /api/games/{id}/start", c.transition)
 	mux.HandleFunc("POST /api/games/{id}/end", c.transition)
+	mux.HandleFunc("POST /api/games/{id}/missions", c.addMissions)
+	mux.HandleFunc("PATCH /api/games/{id}/missions/{mission}", c.setMissionEnabled)
 }
 
 func gameJSON(w http.ResponseWriter, status int, v any) {

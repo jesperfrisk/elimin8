@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { request, readAccess, rememberAccess, forgetAccess } from "./api";
 import { useGame } from "./useGame";
+import { LobbyMissions } from "./LobbyMissions";
 import "./style.css";
 
 function useRoute() {
@@ -687,6 +688,7 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
               </section>
             )}
           </div>
+          <LobbyMissions game={game} access={access} action={action} busy={busy} />
           {!!issued.length && (
             <section className="secret-panel">
               <div className="section-heading">

@@ -577,6 +577,45 @@ footer {
 footer span {
   letter-spacing: 0;
 }
+.lobby-missions {
+  margin-top: 2.5rem;
+}
+.mission-entry {
+  display: grid;
+  gap: 0.5rem;
+}
+.lobby-mission-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 34rem;
+  overflow-y: auto;
+}
+.lobby-mission-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.3rem;
+  border-bottom: 1px solid var(--border);
+}
+.lobby-mission-list li:last-child {
+  border-bottom: 0;
+}
+.lobby-mission-list p {
+  margin: 0 0 0.3rem;
+  overflow-wrap: anywhere;
+}
+.lobby-mission-list small {
+  color: var(--accent);
+}
+.lobby-mission-list button {
+  flex-shrink: 0;
+}
+.lobby-mission-list .mission-disabled p,
+.lobby-mission-list .mission-disabled small {
+  color: var(--muted);
+}
 .sr-only {
   position: absolute;
   width: 1px;

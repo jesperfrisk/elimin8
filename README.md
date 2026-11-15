@@ -37,15 +37,16 @@ docker compose down
 
 See [backend setup](backend/README.md) and [frontend setup](frontend/README.md) for architecture, configuration, and development commands.
 
-## Available Now: Games and Invitations
+## Available Now: Games, Invitations, and Lobby Missions
 
 1. Open **Organize** and create a game with a name and optional description. Save the private organizer management code shown once after creation.
 2. Add player names to the lobby, one per line. Each roster entry receives its own eight-character private code. Copy each invitation and share it with that player only.
 3. Players open **Play** and enter the shared game invitation code plus their private player code. The organizer sees each player change from **Invited** to **Joined** immediately.
-4. Start the game when ready. Only players who joined before the start are included. Closing a browser does not undo a join. Included players can return using their codes; unjoined invitees cannot join after the start.
-5. End a lobby or active game using the organizer controls. Ended games remain available to their organizer and previously admitted players.
+4. Add missions to the lobby, one per line. Paste as many as you need; each entry starts enabled. Disable missions to leave them out without deleting them, and re-enable them whenever you like before starting. Missions belong only to this game and remain hidden from players. Repeated lines create separate entries.
+5. Start the game when ready. Only players who joined before the start are included, and mission configuration locks. Closing a browser does not undo a join. Included players can return using their codes; unjoined invitees cannot join after the start.
+6. End a lobby or active game using the organizer controls. Ended games remain available to their organizer and previously admitted players.
 
-Games can be created, started, and ended with no players. This release does not assign missions, victims, teams, or winners. The rules below describe the planned complete game.
+Games can be created, started, and ended with no players or missions. Lobby mission configuration is available; randomly assigning one enabled mission to each player is the next step. This release does not assign missions, victims, teams, or winners. The rules below describe the planned complete game.
 
 Player and organizer codes authenticate access across devices. Private codes are shown only when generated; an organizer can reset a lost player code, invalidating that player's previous code and access credentials. Browser tabs remember temporary access for up to 12 hours, without saving private codes. Keep the organizer management code: account recovery is not implemented.
 
@@ -334,7 +335,7 @@ All participants can see the public Kill Board, but it must not reveal any secre
 - [x] Create games
 - [x] Join games using invitation codes
 - [ ] Configure teams manually or randomly
-- [ ] Configure missions
+- [x] Configure missions
 - [ ] Generate team-safe victim assignments
 - [ ] Reveal private assignments when games start
 - [ ] Implement mutual elimination confirmation

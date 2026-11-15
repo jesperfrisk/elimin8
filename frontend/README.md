@@ -59,6 +59,8 @@ Implemented routes use hash navigation:
 - `/#/player`: join or return using invitation/private player codes.
 - `/#/player/{id}`: own lobby membership, active game, and ended-game status.
 
+The organizer page also includes **Lobby missions**. Paste one mission per line; blank lines are ignored and repeated tasks remain separate entries. Large lists are submitted in batches of 100. Each successful batch clears its saved lines from the input, preserving unsaved lines if a later batch fails. New missions start enabled; use **Disable** or **Enable** on each entry to change which tasks are eligible. Changes save immediately, synchronize across organizer tabs, and lock when the lobby closes. Missions belong only to this game and are hidden from players. Random player assignment is the next step.
+
 Organizers can paste player names one per line. Generated codes are held only in page memory and can be copied into individual invitations; they are never written to browser storage. Temporary access tokens and basic game labels are kept in `sessionStorage` for reloads. Private codes allow access from another browser. A returning organizer must retain the management code shown once at creation.
 
 MQTT.js subscribes to the role-scoped topic returned by the API. Subscribe acknowledgement is followed by a state fetch, preventing missed events during initial connection or reconnection. Notifications cause authorized fetches; there is no periodic polling. Disconnection is visible, failed fetches retry with backoff, and revoked/expired access prompts code re-entry. MQTT keepalives maintain the transport and do not poll game state.
@@ -71,6 +73,6 @@ Start the Docker stack, then run:
 npm run test:e2e
 ```
 
-Tests cover real organizer/player browser contexts, joined-only start, MQTT lifecycle updates, reconnect recovery, topic isolation, code reset, and API permissions. On Windows they use installed Microsoft Edge; elsewhere run `npx playwright install chromium` first. Override the browser with `PLAYWRIGHT_CHANNEL` and the server with `E2E_BASE_URL`. Test games are created in the configured development database and ended after successful checks; existing games are not deleted.
+Tests cover real organizer/player browser contexts, mission batches and partial-failure recovery, mission toggles and persistence, joined-only start, MQTT lifecycle updates, reconnect recovery, topic isolation, code reset, and API permissions. On Windows they use installed Microsoft Edge; elsewhere run `npx playwright install chromium` first. Override the browser with `PLAYWRIGHT_CHANNEL` and the server with `E2E_BASE_URL`. Test games are created in the configured development database and ended after successful checks; existing games are not deleted.
 
 See the [project README](../README.md) for the complete game rules and roadmap, and the [backend README](../backend/README.md) for the API architecture.

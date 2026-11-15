@@ -238,6 +238,10 @@ func (s *GameService) Authorize(ctx context.Context, token string) (models.Acces
 
 func View(g *models.Game, a models.Access) models.GameView {
 	v := models.GameView{ID: g.ID, Name: g.Name, Description: g.Description, InvitationCode: g.InvitationCode, Status: g.Status, Revision: g.Revision, CreatedAt: g.CreatedAt, StartedAt: g.StartedAt, EndedAt: g.EndedAt, InvitedCount: len(g.Players)}
+	if a.PlayerID == "" {
+		missions := append([]models.LobbyMission{}, g.Missions...)
+		v.Missions = &missions
+	}
 	for _, p := range g.Players {
 		if p.JoinedAt != nil {
 			v.JoinedCount++
