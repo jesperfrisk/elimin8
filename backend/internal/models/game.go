@@ -20,8 +20,7 @@ type Game struct {
 }
 
 // LobbyMission is a game-local assignment candidate. Its ID is only for lobby
-// controls; a future player assignment should own its mission text, not reference
-// an independently persisted mission or depend on this candidate remaining here.
+// controls; player assignments own a copy of the text independently of this entry.
 type LobbyMission struct {
 	ID      string `bson:"id" json:"id"`
 	Text    string `bson:"text" json:"text"`
@@ -35,6 +34,7 @@ type Player struct {
 	CredentialVersion int        `bson:"credentialVersion"`
 	JoinedAt          *time.Time `bson:"joinedAt,omitempty"`
 	Included          bool       `bson:"included"`
+	Mission           string     `bson:"mission,omitempty"`
 }
 
 type Access struct {
@@ -50,6 +50,7 @@ type PlayerView struct {
 	Name     string     `json:"name"`
 	JoinedAt *time.Time `json:"joinedAt"`
 	Included bool       `json:"included"`
+	Mission  string     `json:"mission,omitempty"`
 }
 
 type GameView struct {

@@ -40,6 +40,13 @@ export function LobbyMissions({ game, access, action, busy }) {
         </div>
         <span className="badge">{enabledCount} enabled / {missions.length} total</span>
       </div>
+      {lobby && (
+        <p className="muted">
+          {enabledCount
+            ? "At the start, each joined player gets a random mission. Every enabled entry is used before any is reused."
+            : "Enable at least one mission before starting with players."}
+        </p>
+      )}
       <div className={lobby ? "roster-layout" : ""}>
         <section className="panel roster" aria-label="Mission list">
           {!missions.length ? (

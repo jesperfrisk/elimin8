@@ -536,6 +536,13 @@ tbody tr:last-child td {
   gap: 1rem;
   flex-wrap: wrap;
 }
+.game-action-error {
+  display: block;
+  scroll-margin-block: 1rem;
+}
+.game-action-error p {
+  margin-top: 0;
+}
 .alert a {
   font-size: 0.9rem;
 }
@@ -579,6 +586,23 @@ footer span {
 }
 .lobby-missions {
   margin-top: 2.5rem;
+}
+.assigned-mission {
+  min-width: 12rem;
+  max-width: 28rem;
+  overflow-wrap: anywhere;
+}
+.private-mission {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.private-mission small {
+  color: var(--muted);
 }
 .mission-entry {
   display: grid;

@@ -64,7 +64,19 @@ func gameError(w http.ResponseWriter, err error) {
 	case errors.Is(err, services.ErrNotFound):
 		status = 404
 		message = err.Error()
-	case errors.Is(err, services.ErrConflict), errors.Is(err, services.ErrLobbyClosed):
+	case errors.Is(err, services.ErrNoMissions):
+		status = 409
+		message = "Add or enable at least one mission before starting with joined players."
+	case errors.Is(err, services.ErrAlreadyStarted):
+		status = 409
+		message = "This game has already started. Refresh the game to see its current state."
+	case errors.Is(err, services.ErrGameEnded):
+		status = 409
+		message = "This game has ended and cannot be started again. Create a new game to play again."
+	case errors.Is(err, services.ErrConflict):
+		status = 409
+		message = "The game changed while you were working. Refresh the game and try again."
+	case errors.Is(err, services.ErrLobbyClosed):
 		status = 409
 		message = err.Error()
 	default:

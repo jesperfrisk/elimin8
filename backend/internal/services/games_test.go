@@ -61,6 +61,9 @@ func TestLifecycleAndPrivacy(t *testing.T) {
 	if _, err = s.AddPlayers(ctx, a, []string{"Mallory"}); !errors.Is(err, services.ErrForbidden) {
 		t.Fatalf("player edited roster: %v", err)
 	}
+	if _, err = s.AddMissions(ctx, owner, []string{"Get a high-five."}); err != nil {
+		t.Fatal(err)
+	}
 	if err = s.Transition(ctx, owner, "start"); err != nil {
 		t.Fatal(err)
 	}
@@ -157,6 +160,9 @@ func TestOtherInstanceJoinForcesStartToRetry(t *testing.T) {
 	s, repo, game, owner, players := setup(t)
 	other := services.NewGameService(repo)
 	ctx := context.Background()
+	if _, err := s.AddMissions(ctx, owner, []string{"Get a high-five."}); err != nil {
+		t.Fatal(err)
+	}
 	entered, release := make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	repo.BeforeSave = func(g *models.Game) {
