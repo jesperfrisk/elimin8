@@ -28,10 +28,10 @@ The API uses Go's standard `net/http` package and the official MongoDB Go driver
 From the repository root:
 
 ```sh
-docker compose up --build --wait
+make up
 ```
 
-The API is available at `http://localhost:8080`. Compose starts MongoDB first, waits for its health check, then starts the API. MongoDB data persists in a named Docker volume.
+(equivalent to `docker compose up --build --wait`; see the root [Makefile](../Makefile)). The API is available at `http://localhost:8080` (override with `BACKEND_PORT` in a root `.env`, see [.env.example](../.env.example)). Compose starts MongoDB first, waits for its health check, then starts the API. MongoDB data persists in a named Docker volume.
 
 ## Run Locally
 
@@ -39,15 +39,14 @@ Install Go 1.27 or newer (or enable Go's automatic toolchain download) and start
 
 ```sh
 docker compose up -d --wait mongodb
-cd backend
-go run ./cmd/api
+make backend-run
 ```
 
 Defaults are `HTTP_ADDR=:8080`, `MONGODB_URI=mongodb://localhost:27017`, and `MONGODB_DATABASE=elimin8`. See [.env.example](.env.example) for reference. Export overrides into your shell before running Go; `.env` files are not automatically loaded. For local-only access, set `HTTP_ADDR=127.0.0.1:8080`.
 
 ```sh
-go test ./...
-go vet ./...
+make backend-test
+make backend-vet
 ```
 
 ## Health Endpoints
