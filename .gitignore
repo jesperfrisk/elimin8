@@ -23,6 +23,9 @@ Desktop.ini
 .idea/
 .vscode/
 
+# Claude Code local state (worktrees, session scratch files)
+/.claude/
+
 # Go build, test, and coverage output
 /backend/bin/
 /backend/tmp/
