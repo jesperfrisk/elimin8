@@ -63,5 +63,7 @@ make frontend-test      # Playwright e2e; needs the Docker stack running
   before retrying. Don't introduce multi-document writes for related state
   (assignments, eliminations, scores) without a replica set — see
   backend/README.md.
-- `.claude/` (including worktrees created by Claude Code sessions) is
-  gitignored and must never be committed.
+- `.claude/` is tracked and shared across the team (skills, project
+  settings). `.claude/worktrees/` (session worktrees) and
+  `.claude/settings.local.json` (per-user overrides) are gitignored and
+  must never be committed.

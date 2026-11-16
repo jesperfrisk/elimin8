@@ -28,6 +28,10 @@ Notable changes and the reasoning behind them. Format loosely follows
   (`make up`, `make down`, `make backend-test`, `make frontend-dev`, etc.),
   so contributors don't need to remember or look up the underlying commands.
 - `CLAUDE.md` with project context for AI coding assistants.
+- `.claude/` is now tracked so Claude Code skills (e.g. `.claude/skills/grill-me/`)
+  are shared across the team, instead of living only in each developer's
+  home directory. `.claude/worktrees/` (per-session worktrees) and
+  `.claude/settings.local.json` (per-user overrides) stay gitignored.
 
 ### Why two `.env.example` files?
 
