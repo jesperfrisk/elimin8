@@ -7,10 +7,10 @@ The frontend is a React application built with Vite, with organizer and player p
 From the repository root:
 
 ```sh
-docker compose up --build --wait
+make up
 ```
 
-Open `http://localhost:3000`. The frontend image builds static assets and serves them through Nginx as a non-root user. Nginx forwards `/api/` requests to the backend, so browser requests use the same origin.
+(equivalent to `docker compose up --build --wait`; see the root [Makefile](../Makefile)). Open `http://localhost:3000` (override with `FRONTEND_PORT` in a root `.env`, see [.env.example](../.env.example)). The frontend image builds static assets and serves them through Nginx as a non-root user. Nginx forwards `/api/` requests to the backend, so browser requests use the same origin.
 
 The Docker frontend also accepts connections from other devices on the same network at `http://<host-LAN-IP>:3000`. Both API requests and MQTT use that same address. Windows Firewall must allow inbound TCP port 3000 from `LocalSubnet` on the active network profile. Browser clipboard access may be unavailable over LAN HTTP; private codes remain visible for manual copying.
 
@@ -19,15 +19,13 @@ The Docker frontend also accepts connections from other devices on the same netw
 Use Node.js 22.12 or newer. Start the backend on port 8080, then:
 
 ```sh
-cd frontend
-npm ci
-npm run dev
+make frontend-dev
 ```
 
 Open the address printed by Vite (normally `http://localhost:5173`). Vite forwards `/api` requests and `/api/mqtt` WebSocket connections to `http://127.0.0.1:8080`.
 
 ```sh
-npm run build
+make frontend-build
 ```
 
 `npm run preview` previews static assets only; use the development server or Docker to exercise the API proxy.
@@ -74,7 +72,7 @@ MQTT.js subscribes to the role-scoped topic returned by the API. Subscribe ackno
 Start the Docker stack, then run:
 
 ```sh
-npm run test:e2e
+make frontend-test
 ```
 
 Tests cover real organizer/player browser contexts, mission batches and partial-failure recovery, mission toggles and persistence, joined-only start, MQTT lifecycle updates, reconnect recovery, topic isolation, code reset, and API permissions. On Windows they use installed Microsoft Edge; elsewhere run `npx playwright install chromium` first. Override the browser with `PLAYWRIGHT_CHANNEL` and the server with `E2E_BASE_URL`. Test games are created in the configured development database and ended after successful checks; existing games are not deleted.

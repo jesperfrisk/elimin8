@@ -15,8 +15,10 @@ Elimin8 manages secret assignments, teams, eliminations, withdrawals, timers, an
 Install Docker with Docker Compose v2 and start Docker Desktop (using Linux containers on Windows). From the repository root:
 
 ```sh
-docker compose up --build --wait
+make up
 ```
+
+(equivalent to `docker compose up --build --wait`; see the [Makefile](Makefile) for all shortcuts, or run `docker compose` directly.)
 
 - Frontend: http://localhost:3000
 - Backend readiness: http://localhost:8080/api/health/ready
@@ -26,14 +28,16 @@ The app includes organizer and player pages, code-based game access, MongoDB per
 
 Compose waits for MongoDB and the API to become healthy before starting dependent services. MongoDB data is stored in a named volume and survives container replacement. The frontend listens on all host interfaces on port 3000; the backend and MongoDB host ports remain bound to localhost.
 
+If any of those host ports already have something else running locally, copy [.env.example](.env.example) to `.env` and override `MONGODB_PORT`, `BACKEND_PORT`, and/or `FRONTEND_PORT`; Compose reads `.env` automatically. This only changes host-side bindings, not the ports services use to talk to each other inside Docker.
+
 Devices on the same network can open `http://<your-computer-LAN-IP>:3000`. On Windows, use `ipconfig` to find the IPv4 address of your Wi-Fi or Ethernet adapter. API requests and MQTT connections go through the frontend automatically. If Windows Firewall blocks access, allow inbound TCP port 3000 from `LocalSubnet` on the active network profile. This configuration is for development on a trusted network.
 
 ```sh
-docker compose logs -f
-docker compose down
+make logs
+make down
 ```
 
-`docker compose down` preserves database data. To deliberately delete all local database data, use `docker compose down --volumes`.
+`make down` (`docker compose down`) preserves database data. To deliberately delete all local database data, use `make clean` (`docker compose down --volumes`).
 
 See [backend setup](backend/README.md) and [frontend setup](frontend/README.md) for architecture, configuration, and development commands.
 

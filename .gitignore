@@ -23,6 +23,11 @@ Desktop.ini
 .idea/
 .vscode/
 
+# Claude Code: share .claude/ (skills, settings) across the team, but never
+# session worktrees or per-user local overrides
+/.claude/worktrees/
+/.claude/settings.local.json
+
 # Go build, test, and coverage output
 /backend/bin/
 /backend/tmp/
