@@ -19,7 +19,7 @@ was released). All state lives in GitHub; the issue assignee is the lock.
 2. **I hold a ticket** -> work only on it, then end the tick:
    - No PR yet -> spawn one `ticket-worker` subagent for that issue (it
      resumes from its branch if one exists).
-   - PR is draft, CI green -> `gh pr ready`.
+   - PR is still a draft (legacy) -> `gh pr ready` once `make check`/CI is green.
    - PR has `pr-reviewer: CHANGES|CONFLICT <sha>` for the current head, human
      review comments, red CI, or conflicts -> spawn `ticket-worker` in
      address-feedback mode (`ticket-worker` step 8) on that PR's branch.

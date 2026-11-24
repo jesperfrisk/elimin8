@@ -6,7 +6,7 @@ description: One tick of the reviewer role - sweep every open PR into dev, comme
 # Review loop (one tick)
 
 The reviewer is a dedicated role: one session (or one person's machine) runs
-this on a timer. It looks at **every** open, non-draft PR into `dev`, whoever
+this on a timer. It looks at **every** open PR into `dev` (drafts included), whoever
 authored it, and either leaves comments or signs off and merges. It never
 implements tickets.
 

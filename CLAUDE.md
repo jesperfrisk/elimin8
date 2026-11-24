@@ -67,7 +67,7 @@ feature/* | fix/* | chore/*  --PR-->  dev  --PR (human approves)-->  main
 ### Loops (one role per session)
 
 - **Reviewer:** `/loop 5m /review-loop` (`.claude/skills/review-loop/`).
-  Sweeps every open non-draft PR into `dev`, comments or signs off, and merges
+  Sweeps every open PR into `dev` (drafts too), comments or signs off, and merges
   green ones via the `pr-reviewer` agent.
 - **Worker:** `/loop 10m /worker-loop` (`.claude/skills/worker-loop/`). Holds
   **one ticket at a time**, fixes review feedback on its PR
