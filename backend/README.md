@@ -1,6 +1,6 @@
 # Elimin8 Backend
 
-The backend is a Go HTTP API backed by MongoDB, with an embedded Mochi MQTT broker for realtime updates. It manages games, organizer-owned rosters, private-code access, lobby missions, private assignments, mutually confirmed eliminations, confirmed player withdrawals, assignment transfers, and last-player victory. Teams, timers, and scoring remain future work.
+The backend is a Go HTTP API backed by MongoDB, with an embedded Mochi MQTT broker for realtime updates. It manages games, organizer-owned rosters, private-code access, lobby missions, private assignments, mutually confirmed eliminations, confirmed player withdrawals, assignment transfers, and last-player victory. Final results (winners, ties, and confirmed-kill standings) are calculated when a game ends by survival or timer.
 
 ## Structure
 
@@ -34,9 +34,10 @@ Models, services and controllers are split by domain so feature work mostly owns
 | Eliminations | `elimination.go` | `eliminations.go`, `victims.go` | `eliminations.go` |
 | API views | `views.go` | `views.go` | |
 | Withdrawals | `withdrawals.go` | `withdrawals.go` | `withdrawals.go` |
-| Teams, timer, results | `teams.go`, `timer.go`, `results.go` | same names | same names (route-less placeholders) |
+| Teams, timer | `teams.go`, `timer.go` | same names | same names |
+| Results | `results.go` | `results.go` | `results.go` |
 
-Phase 1 fields are reserved on `Game` (`Mode`, `Teams`, `Timer`, `EndReason`, `Result`) and `Player` (`TeamID`, `ConfirmedKills`). They are `omitempty`, carry no JSON tags, and are not exposed in any view until their feature adds them.
+Phase 1 fields are reserved on `Game` (`Mode`, `Teams`, `Timer`, `EndReason`) and `Player` (`TeamID`, `ConfirmedKills`). They are `omitempty`, carry no JSON tags, and are not exposed in any view until their feature adds them.
 
 **Adding a domain or route:** put handlers in `controllers/<domain>.go` with a `register<Domain>(mux)` method that calls `mux.HandleFunc(...)`, then add one `c.register<Domain>(mux)` line to `GameController.Register` in `controllers/games.go` (the placeholder domains are already wired). Put rules in `services/<domain>.go` and types in `models/<domain>.go`.
 
@@ -105,6 +106,8 @@ In team mode, starting requires every joined player on a team and at least two t
 
 Survival winners (`services/winners.go`): after every confirmed elimination and every confirmed withdrawal, `detectWinner` ends an active game once. Individual mode: the last active player wins. Team mode: the last team with active players wins, and so does a team with an unbeatable majority, that is when no team-safe circle can exist for the remaining players (more than half of them on one team). Withdrawn and eliminated players are not active. The game gets `endedAt`, `endReason: "survival"`, `winnerKind` (`player` or `team`) and `winnerId`, and the remaining players' victims and missions are cleared. Detection runs inside the per-game mutex and revision-checked write, so two concurrent final events end the game once with one winner. The winner stays hidden while the game is active. Timer-expiry winners are left to the results ticket.
 
+Final results (`services/results.go`): when a game ends, the result is calculated once and stored on the game as `result`; it is never recalculated, so it is immutable. A survival ending (see above) records the winner chosen by the winner logic. When the timer expires first (`OnTimerExpired`), the individual with the most confirmed kills wins, or in team mode the team with the highest combined confirmed kills; players or teams that share the top score are all listed as winners and `tie` is true, so a tie is never broken silently (a game with no kills is a tie of everyone). Kills earned by players who were later eliminated or withdrew still count, withdrawals never earn kills, and eliminated or withdrawn participants remain eligible and appear in the standings. Standings list every participant (individual games) or team (team games), most kills first, ties ordered by name. A game the organizer ended manually has no result (404), and `GET /api/games/{id}/result` returns 409 until the game has ended. Kill counts exist only in this payload, after the end: game views, mid-game and afterwards, never carry them. Games that ended by survival before results existed get theirs derived from the stored winner when read.
+
 Team-safe assignment (`services/victims.go`): in team mode the start circle has no victim on the hunter's own team. A safe circle exists only when at least two players remain and no team holds more than half of them. Otherwise start fails with `ErrNoValidAssignment` (HTTP 409) and writes no assignments. After every elimination transfer, `repairTeamCircle` reorders the living circle (a two-player swap, else a full re-deal) if a hunter would otherwise target a teammate; missions stay with their holders. If no safe circle remains, the team holding the majority has already won (see survival winners below); `ValidAssignmentExists(game) bool` still reports it, counting joined players before the start and active players afterwards. Eliminations and withdrawals both run the same post-transfer step. Individual mode is unchanged. Randomness is injectable through the `victimIntn` package variable in tests.
 
 After starting, `participants` contains only IDs, names, a `status` (`active`, `eliminated`, or `withdrawn`), and elimination timestamps as shared participant information. Private `eliminations` contains only reports involving the caller; organizers can read all reports. Eliminated players retain login access but no assignment or ability to report. MQTT invalidations carry no report details; authorized state fetches deliver the confirmation prompt, including after reconnects. Existing documents without elimination fields work without a migration.
@@ -129,7 +132,7 @@ See the [project README](../README.md) for the complete game rules and the [road
 
 ## Current Status
 
-Game lifecycle, organizer rosters, lobby missions, private assignments, mutual elimination confirmation, atomic transfers, last-player victory, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented. Teams, timers, and scoring remain future work.
+Game lifecycle, organizer rosters, lobby missions, private assignments, mutual elimination confirmation, atomic transfers, last-player victory, final results, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented.
 
 ## Game API
 
@@ -148,6 +151,7 @@ Game lifecycle, organizer rosters, lobby missions, private assignments, mutual e
 | PUT | `/api/games/{id}/teams` | Organizer, lobby, team mode: full replace with `{ "teams": [ { "id"?, "name", "playerIds": [] } ] }`; returns `{ "teams" }` |
 | POST | `/api/games/{id}/teams/randomize` | Organizer, lobby, team mode: `{ "teamCount": n }` (2 to joined players) deals joined players into balanced teams and persists them |
 | POST | `/api/games/{id}/eliminations` | Living player, active game: report the assigned target with `{ "victimId": "..." }`; returns a pending claim |
+| GET | `/api/games/{id}/result` | Organizer or any participant, only after the game has ended (409 before; 404 if the organizer ended it): `{ "reason": "survival"\|"timer", "tie": bool, "winners": [ { "kind", "id", "name" } ], "standings": [ { "kind", "id", "name", "kills" } ] }` |
 | POST | `/api/games/{id}/eliminations/{claim}/response` | Named victim: respond with `{ "accept": true }` or `{ "accept": false }` |
 | POST | `/api/games/{id}/withdrawals` | Living player, active game: ask to withdraw; returns `{ "withdrawalToken", "expiresAt" }`. Changes nothing until confirmed; the token expires after two minutes |
 | POST | `/api/games/{id}/withdrawals/confirm` | Same player: confirm with `{ "withdrawalToken": "..." }`; returns 204. Marks the player withdrawn (not a kill), their hunter inherits the victim and mission, and the last survivor wins as after an elimination |
@@ -175,4 +179,4 @@ Run one API/broker instance with this configuration. Revision checks protect dat
 
 ## Game timer
 
-`PUT /api/games/{id}/timer` with `{"durationMinutes": 1..10080 | null}` sets or clears the limit (organizer, lobby only). Starting the game stores `timer.endsAt = startedAt + limit`. Expiry is checked lazily inside every game read/write (`mutate`, `Authorize`) and by a 5 second background sweep (`RunTimerSweep`), so it survives restarts; the revision-checked save makes it happen exactly once. Expired games become `ended` with `endReason: "timer"` and `endedAt = endsAt`, pending eliminations are cancelled, and `GameService.OnTimerExpired` (a no-op) is the hook for the results ticket. `GameView` exposes `timerMinutes`, `endsAt`, `remainingSeconds` and `endReason` to all roles.
+`PUT /api/games/{id}/timer` with `{"durationMinutes": 1..10080 | null}` sets or clears the limit (organizer, lobby only). Starting the game stores `timer.endsAt = startedAt + limit`. Expiry is checked lazily inside every game read/write (`mutate`, `Authorize`) and by a 5 second background sweep (`RunTimerSweep`), so it survives restarts; the revision-checked save makes it happen exactly once. Expired games become `ended` with `endReason: "timer"` and `endedAt = endsAt`, pending eliminations are cancelled, and `GameService.OnTimerExpired` stores the final result (see Final results). `GameView` exposes `timerMinutes`, `endsAt`, `remainingSeconds` and `endReason` to all roles.

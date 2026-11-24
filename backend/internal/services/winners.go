@@ -82,6 +82,7 @@ func finishGame(g *models.Game, living []*models.Player, now time.Time, kind, id
 	}
 	g.Status, g.EndedAt, g.EndReason = "ended", &now, endSurvival
 	g.WinnerKind, g.WinnerID = kind, id
+	setResult(g, endSurvival)
 }
 
 // winnerView is the public winner payload: kind, id and name only, and only

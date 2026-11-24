@@ -16,20 +16,12 @@ import (
 // team game. teams[i] is player i's team ID; teams get readable names.
 func teamGame(t *testing.T, teams []string) (*services.GameService, models.Access, func() *models.Game, []models.Access) {
 	t.Helper()
-	ctx := context.Background()
-	s, repo, a := eliminationGame(t, len(teams))
-	g, _ := repo.Get(ctx, a[0].GameID)
-	g.Mode = models.ModeTeam
-	seen := map[string]bool{}
-	for i, team := range teams {
-		g.Players[i].TeamID = team
-		if !seen[team] {
-			seen[team] = true
-			g.Teams = append(g.Teams, models.Team{ID: team, Name: "Team " + team})
-		}
+	s, repo, a := teamGameRepo(t, teams)
+	load := func() *models.Game {
+		g, _ := repo.Get(context.Background(), a[0].GameID)
+		return g
 	}
-	repo.Games[g.ID] = g
-	return s, models.Access{GameID: g.ID}, func() *models.Game { g, _ := repo.Get(ctx, a[0].GameID); return g }, a
+	return s, models.Access{GameID: a[0].GameID}, load, a
 }
 
 // confirmKill has the killer report their current victim and the victim accept.
