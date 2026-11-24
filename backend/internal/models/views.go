@@ -24,6 +24,13 @@ type PlayerView struct {
 	Team *TeamView `json:"team,omitempty"`
 }
 
+// WinnerView is the public survival winner: a player or a team, by name only.
+type WinnerView struct {
+	Kind string `json:"kind"` // "player" or "team"
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // VictimView exposes identity only, never the victim's private assignments.
 type VictimView struct {
 	ID   string `json:"id"`
@@ -48,7 +55,8 @@ type GameView struct {
 	Missions         *[]LobbyMission   `json:"missions,omitempty"`
 	Participants     []ParticipantView `json:"participants,omitempty"`
 	Eliminations     []Elimination     `json:"eliminations,omitempty"`
-	WinnerID         string            `json:"winnerId,omitempty"`
+	WinnerID         string            `json:"winnerId,omitempty"` // player winners only
+	Winner           *WinnerView       `json:"winner"`             // null until the game has ended
 
 	// Timer: visible to every role. Remaining time is computed at view time.
 	TimerMinutes     *int       `json:"timerMinutes"`

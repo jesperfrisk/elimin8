@@ -91,26 +91,7 @@ func transferElimination(g *models.Game, killer, victim *models.Player, now time
 	recordKill(killer)
 	victim.EliminatedAt = &now
 	victim.VictimID, victim.Mission = "", ""
-	endIfLastSurvivor(g, killer, now)
-}
-
-// endIfLastSurvivor ends the game when survivor is the only participant left
-// (shared by eliminations and withdrawals).
-func endIfLastSurvivor(g *models.Game, survivor *models.Player, now time.Time) {
-	remaining := 0
-	for i := range g.Players {
-		if stillPlaying(&g.Players[i]) {
-			remaining++
-		}
-	}
-	if remaining == 1 {
-		survivor.VictimID, survivor.Mission = "", ""
-		g.Status, g.EndedAt, g.WinnerID = "ended", &now, survivor.ID
-		return
-	}
-	// Team mode: never leave a hunter targeting a teammate. When no safe circle
-	// exists the transfer stands and ValidAssignmentExists reports it (#19).
-	_ = repairTeamCircle(g)
+	settleAfterTransfer(g, now)
 }
 
 // Claims survive reconnects but cannot be acted on once a participant is out.
