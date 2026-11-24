@@ -21,11 +21,12 @@ import { Results } from "./Results";
 // game.status === "lobby"
 import { Timer } from "./Timer";
 import { Teams } from "./Teams";
+import { KillBoard } from "./KillBoard";
 
 export const lobbyPanels = [Timer, Teams];
 
 // game.status === "active"
-export const inGamePanels = [Timer, Teams, Withdrawal];
+export const inGamePanels = [Timer, Teams, Withdrawal, KillBoard];
 
 // game.status === "ended"
 export const gameOverPanels = [Results];
