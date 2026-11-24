@@ -35,6 +35,39 @@ make frontend-build
 make frontend-test      # Playwright e2e; needs the Docker stack running
 ```
 
+## Git workflow (branches, PRs, agents)
+
+```
+feature/* | fix/* | chore/*  --PR-->  dev  --PR (human approves)-->  main
+```
+
+- **`main` is never touched directly** — no commits, pushes, or merges by
+  Claude or any agent. Every PR into `main` comes from `dev` and must be
+  approved and merged by a human.
+- **`dev` is the integration branch.** Branch every feature from the latest
+  `origin/dev` and open the PR back into `dev` (squash merge). Don't push to
+  `dev` directly either.
+- Branch names: `<feature|fix|chore>/<issue#>-<short-slug>`. One issue = one
+  branch = one PR. Never leave a bare `git push` pointing at `dev`/`main`:
+  push with an explicit `HEAD:<branch>`.
+- Run `make check` (gofmt, vet, backend tests, frontend build) before
+  pushing; CI runs the same on PRs into `dev` and `main`.
+- Agents never run `gh pr merge`, approve PRs, or force-push (denied in
+  `.claude/settings.json`). A force-with-lease on a single owned feature
+  branch after a rebase is the only exception, and needs the user's approval.
+
+### Ticket workers and the orchestrator
+
+- `/orchestrate-tickets <goal|issues>` (`.claude/skills/orchestrate-tickets/`)
+  slices work into issues, dispatches workers, tracks PRs, resolves
+  conflicts, and opens the `dev` -> `main` release PR for human review.
+- Workers are the `ticket-worker` subagent (`.claude/agents/ticket-worker.md`,
+  **Sonnet 5.5**, own worktree) following `.claude/skills/ticket-worker/`.
+  Each ticket is sized for **~150k tokens**; a worker that can't fit reports
+  `NEEDS-SPLIT` instead of grinding on.
+- Don't run parallel tickets that touch the same files (e.g. `models/game.go`,
+  `main.jsx`, READMEs); the orchestrator serializes those.
+
 ## Local environment
 
 - Host ports for `mongodb`/`backend`/`frontend` are overridable via

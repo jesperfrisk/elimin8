@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make backend-test)",
+      "Bash(make backend-vet)",
+      "Bash(make frontend-build)",
+      "Bash(make check)",
+      "Bash(gofmt:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git fetch:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)"
+    ],
+    "deny": [
+      "Bash(git push origin main:*)",
+      "Bash(git push origin HEAD:main:*)",
+      "Bash(git push origin HEAD:refs/heads/main:*)",
+      "Bash(git push origin dev:*)",
+      "Bash(git push origin HEAD:dev:*)",
+      "Bash(git push origin HEAD:refs/heads/dev:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --delete:*)",
+      "Bash(git push origin --delete:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr review --approve:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(gh api -X DELETE:*)",
+      "Bash(gh api --method DELETE:*)"
+    ]
+  }
+}

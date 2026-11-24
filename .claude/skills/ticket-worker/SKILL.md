@@ -1,0 +1,67 @@
+---
+name: ticket-worker
+description: Playbook for implementing one GitHub issue in Elimin8 (branch from dev, tests, draft PR into dev). Used by ticket-worker subagents; invoke manually as /ticket-worker <issue#> to work a single ticket yourself.
+---
+
+# Ticket worker
+
+You implement **one issue** and deliver a **draft PR into `dev`**. Nothing else.
+
+## Hard rules
+
+- **Never** commit or push to `main` or `dev`. **Never** merge any PR
+  (`gh pr merge` is denied). Never force-push, never rewrite someone else's
+  branch. Only a human merges `dev` -> `main`.
+- Base your branch on the **latest `origin/dev`**, not main.
+- Branch name: `<type>/<issue#>-<short-slug>` where type is `feature`, `fix`
+  or `chore` (e.g. `feature/12-kill-feed`). One issue = one branch = one PR.
+- Stay in scope. Anything discovered but out of scope goes in the PR body /
+  final report so the orchestrator can file a new issue. Don't fix it.
+- Follow `CLAUDE.md`: server is authoritative, no leaking
+  missions/targets/team/kill counts in API responses, no multi-document
+  writes, never hardcode ports in `compose.yaml`.
+
+## Token budget (~150k)
+
+Target **<= ~150k tokens** for the whole ticket. To stay inside it:
+
+1. Read the issue and only the files it implies; use grep/targeted reads, not
+   directory dumps. Don't re-read files you just edited.
+2. Run tests narrowly while iterating
+   (`cd backend && go test ./internal/services -run X`), the full suite once
+   before pushing.
+3. Checkpoint: once you understand the task, if you estimate it won't fit
+   (touches many unrelated areas, needs design decisions, needs more than ~8
+   files of real changes), **stop** and report `NEEDS-SPLIT` with a proposed
+   split. An oversized ticket is for the orchestrator to re-slice, not for
+   you to grind through.
+4. If you are blocked on a human decision, report `NEEDS-INPUT` with the
+   exact question rather than guessing.
+
+## Procedure
+
+1. `gh issue view <n>`: read body + comments. Confirm acceptance criteria are
+   testable. Check "Blocked by" tickets are merged into `dev`; if not, report
+   `BLOCKED`.
+2. `git fetch origin && git switch -c <branch> origin/dev`, then
+   `git branch --unset-upstream` so a bare `git push` can't hit dev.
+3. Implement the thinnest vertical slice satisfying the acceptance criteria.
+   Add/adjust tests next to existing ones (Go: `*_test.go` beside the code;
+   e2e: `frontend/tests/*.spec.js`). Update README/CHANGELOG only where
+   behaviour or setup actually changed.
+4. Verify with `make check` (gofmt, vet, backend tests, frontend build). Run
+   `make frontend-test` only if you changed frontend behaviour and the Docker
+   stack is available; otherwise say it was not run.
+5. Commit in small logical commits, imperative messages, ending with the
+   attribution line from the session's system reminder.
+6. `git fetch origin && git rebase origin/dev` (resolve conflicts yourself,
+   keep both sides' intent, re-run `make check` after), then
+   `git push -u origin HEAD:<branch>` (explicit branch name).
+7. Open a **draft** PR: `gh pr create --draft --base dev --head <branch>`
+   using `.github/pull_request_template.md`; include `Closes #<n>`.
+8. Final report (this is all the orchestrator sees; keep it short):
+   - `DONE` | `NEEDS-SPLIT` | `NEEDS-INPUT` | `BLOCKED`
+   - PR URL and branch
+   - What `make check` / tests showed (say honestly what was not run)
+   - Areas/files touched (for conflict prediction)
+   - Follow-ups discovered

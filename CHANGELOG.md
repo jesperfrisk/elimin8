@@ -17,6 +17,16 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
+- `dev` integration branch and a documented `feature/* -> dev -> main` flow
+  (see `CLAUDE.md`). `main` is only changed by human-approved PRs from `dev`.
+- Multi-agent ticket workflow: `/orchestrate-tickets` skill (slices work into
+  ~150k-token issues, dispatches workers, tracks PRs, resolves conflicts),
+  `ticket-worker` subagent pinned to Sonnet 5.5 in its own worktree plus its
+  playbook skill, and a shared `.claude/settings.json` that denies pushes to
+  `main`/`dev`, force-pushes, `gh pr merge` and PR approvals.
+- GitHub CI (gofmt, vet, backend tests, frontend build) on PRs into `dev` and
+  `main`, a check that only `dev` may target `main`, plus PR and ticket
+  templates. `make check` runs the same gate locally.
 - Host ports for `mongodb`, `backend`, and `frontend` in `compose.yaml` are
   now overridable via `MONGODB_PORT`, `BACKEND_PORT`, and `FRONTEND_PORT` in
   a root `.env` file (see `.env.example`). Previously the only way to work
