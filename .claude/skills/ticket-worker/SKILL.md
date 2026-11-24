@@ -40,9 +40,20 @@ Target **<= ~150k tokens** for the whole ticket. To stay inside it:
 
 ## Procedure
 
+0. **Claim first.** Several people's agents pick tickets concurrently; the
+   assignee is the lock.
+   - `gh issue view <n> --json assignees,labels,state`. If it has an assignee,
+     is closed, or lacks `ready-for-agent`, stop and report `TAKEN`.
+   - Otherwise `gh issue edit <n> --add-assignee @me --add-label in-progress`
+     and re-read the assignees: if anyone other than you is there, you lost the
+     race: remove yourself and report `TAKEN`.
+   - If you end without a PR (`NEEDS-SPLIT`, `NEEDS-INPUT`, `BLOCKED`), release:
+     `--remove-assignee @me --remove-label in-progress` and comment why.
 1. `gh issue view <n>`: read body + comments. Confirm acceptance criteria are
-   testable. Check "Blocked by" tickets are merged into `dev`; if not, report
-   `BLOCKED`.
+   testable. Check "Blocked by" tickets are merged into `dev`; if not, release
+   the claim and report `BLOCKED`. Only edit files listed under "Owns files";
+   if you must touch a shared file beyond what's listed, keep the change
+   minimal and mention it in the PR.
 2. `git fetch origin && git switch -c <branch> origin/dev`, then
    `git branch --unset-upstream` so a bare `git push` can't hit dev.
 3. Implement the thinnest vertical slice satisfying the acceptance criteria.
@@ -54,13 +65,18 @@ Target **<= ~150k tokens** for the whole ticket. To stay inside it:
    stack is available; otherwise say it was not run.
 5. Commit in small logical commits, imperative messages, ending with the
    attribution line from the session's system reminder.
-6. `git fetch origin && git rebase origin/dev` (resolve conflicts yourself,
+6. **You own your conflicts.** There is no central orchestrator: before
+   marking ready, and again whenever another PR lands in `dev`,
+   `git fetch origin && git rebase origin/dev` (resolve conflicts yourself,
    keep both sides' intent, re-run `make check` after), then
-   `git push -u origin HEAD:<branch>` (explicit branch name).
+   `git push -u origin HEAD:<branch>` (explicit branch name). If the branch
+   was already pushed and the rebase rewrote it, `git push --force-with-lease
+   origin HEAD:<branch>` is allowed for your own feature branch only, with
+   the user's approval.
 7. Open a **draft** PR: `gh pr create --draft --base dev --head <branch>`
    using `.github/pull_request_template.md`; include `Closes #<n>`.
 8. Final report (this is all the orchestrator sees; keep it short):
-   - `DONE` | `NEEDS-SPLIT` | `NEEDS-INPUT` | `BLOCKED`
+   - `DONE` | `NEEDS-SPLIT` | `NEEDS-INPUT` | `BLOCKED` | `TAKEN`
    - PR URL and branch
    - What `make check` / tests showed (say honestly what was not run)
    - Areas/files touched (for conflict prediction)
