@@ -161,12 +161,13 @@ func TestTransferForcedRepair(t *testing.T) {
 	assertTeamCircle(t, g)
 }
 
-func TestTransferNoValidAssignmentLeavesCircle(t *testing.T) {
+func TestTransferNoValidAssignmentEndsGameForMajorityTeam(t *testing.T) {
 	now := time.Now()
 	mk := func(id, team, victim string) models.Player {
 		return models.Player{ID: id, TeamID: team, VictimID: victim, JoinedAt: &now}
 	}
-	// A,A,B,C: b1 killed by a1 leaves A,A,C: no safe circle.
+	// A,A,B,C: b1 killed by a1 leaves A,A,C: no safe circle exists, so team A
+	// holds an unbeatable majority and wins immediately (winner ticket, #19).
 	g := &models.Game{Mode: models.ModeTeam, Players: []models.Player{
 		mk("a1", "A", "b1"), mk("b1", "B", "a2"), mk("a2", "A", "c1"), mk("c1", "C", "a1"),
 	}}
@@ -175,10 +176,7 @@ func TestTransferNoValidAssignmentLeavesCircle(t *testing.T) {
 	if ValidAssignmentExists(g) {
 		t.Fatal("expected no valid assignment")
 	}
-	if err := repairTeamCircle(g); !errors.Is(err, ErrNoValidAssignment) {
-		t.Fatalf("got %v", err)
-	}
-	if len(livingCircle(g)) != 3 || g.Status != "active" {
-		t.Fatal("state corrupted")
+	if g.Status != "ended" || g.WinnerKind != "team" || g.WinnerID != "A" || g.EndReason != "survival" {
+		t.Fatalf("majority team did not win: status=%s kind=%s winner=%s reason=%s", g.Status, g.WinnerKind, g.WinnerID, g.EndReason)
 	}
 }

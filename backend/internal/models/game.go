@@ -19,6 +19,7 @@ type Game struct {
 	EndedAt           *time.Time     `bson:"endedAt,omitempty"`
 	Eliminations      []Elimination  `bson:"eliminations"`
 	WinnerID          string         `bson:"winnerId,omitempty"`
+	WinnerKind        string         `bson:"winnerKind,omitempty"` // "player" or "team"; empty means player
 
 	// Reserved for Phase 1 features. Zero values are omitted from storage and
 	// none of these are exposed in any view until their feature ticket lands.

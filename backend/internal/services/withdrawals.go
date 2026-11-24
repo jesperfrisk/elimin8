@@ -96,7 +96,7 @@ func withdrawPlayer(g *models.Game, hunter, withdrawer *models.Player, now time.
 	hunter.VictimID, hunter.Mission = withdrawer.VictimID, withdrawer.Mission
 	withdrawer.WithdrawnAt = &now
 	withdrawer.VictimID, withdrawer.Mission = "", ""
-	endIfLastSurvivor(g, hunter, now)
+	settleAfterTransfer(g, now)
 	cancelEliminations(g, now)
 }
 

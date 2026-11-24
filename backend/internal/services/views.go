@@ -10,7 +10,10 @@ func View(g *models.Game, a models.Access) models.GameView {
 		missions := append([]models.LobbyMission{}, g.Missions...)
 		v.Missions = &missions
 	}
-	v.WinnerID = g.WinnerID
+	if g.WinnerKind != winnerTeam {
+		v.WinnerID = g.WinnerID
+	}
+	v.Winner = winnerView(g)
 	timerView(&v, g)
 	if a.PlayerID == "" {
 		v.Mode = string(models.ModeIndividual)

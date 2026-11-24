@@ -32,7 +32,7 @@ export function Eliminations({ game, access, action, busy }) {
         </section>
       )}
       {me?.eliminatedAt && <p role="status">You have been eliminated. Your victim and mission have been transferred.</p>}
-      {game.winnerId && <p role="status"><strong>{name(game.winnerId)}</strong> is the last player standing!</p>}
+      {game.winner && <p role="status"><strong>{game.winner.name}</strong> {game.winner.kind === "team" ? "is the winning team!" : "is the last player standing!"}</p>}
       {outgoing && <p role="status">Waiting for {name(outgoing.victimId)} to confirm your elimination report.</p>}
       {canReport && (
         <>
