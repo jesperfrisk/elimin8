@@ -18,12 +18,14 @@ feature/* --PR--> dev --PR (human approves)--> main
 
 - `main`: **never touched by you.** No commits, pushes or merges. A human
   approves and merges every PR into it.
-- `dev`: integration branch. Feature PRs squash-merge here once CI is green.
-  You may merge into `dev` only if the user said so in this session; default
-  is to leave feature PRs ready and let the human merge.
+- `dev`: integration branch. Feature PRs squash-merge here once CI is green
+  and the `pr-reviewer` has left `pr-reviewer: LGTM <sha>`. Merging into `dev`
+  is done only by the `pr-reviewer` flow via `.claude/scripts/merge-to-dev.sh`;
+  you never call `gh pr merge`. Spawn the `pr-reviewer` subagent after PRs go
+  ready, or tell the user to run `/loop 5m /review-loop`.
 - Workers branch from `origin/dev` and open PRs back to `dev`.
-- `gh pr merge` is denied in project settings. If the user allows merging
-  into `dev`, they approve that call. Never use it for `main`.
+- `gh pr merge` is denied in project settings; only the guarded script
+  (base must be `dev`) is allowed. Never use either for `main`.
 
 > **Multi-person mode:** when several people pull from the same backlog, use
 > `/pick-ticket` instead of dispatching; the assignee on each issue is the
@@ -64,7 +66,7 @@ feature/* --PR--> dev --PR (human approves)--> main
 
 | Report | Action |
 |---|---|
-| `DONE` | Verify the PR exists, is draft, targets `dev`, has `Closes #n`. Check `gh pr checks`. Mark ready for review once CI is green. |
+| `DONE` | Verify the PR exists, is draft, targets `dev`, has `Closes #n`. Check `gh pr checks`. Mark ready for review once CI is green; the `pr-reviewer` then reviews/merges and the worker's loop fixes any `pr-reviewer: CHANGES` comments. |
 | `NEEDS-SPLIT` | Re-slice into smaller issues, comment on and close the original, dispatch the pieces. |
 | `NEEDS-INPUT` | Relay the exact question to the user; don't guess. |
 | `BLOCKED` | Wait for the blocker's PR to land in `dev`, then re-dispatch. |

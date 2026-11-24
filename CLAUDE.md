@@ -56,6 +56,27 @@ feature/* | fix/* | chore/*  --PR-->  dev  --PR (human approves)-->  main
 - Agents never run `gh pr merge`, approve PRs, or force-push (denied in
   `.claude/settings.json`). A force-with-lease on a single owned feature
   branch after a rebase is the only exception, and needs the user's approval.
+- **The one sanctioned merge path** is `.claude/scripts/merge-to-dev.sh <pr#>`
+  (used by the `pr-reviewer` agent). It refuses unless the PR targets `dev`,
+  is non-draft, mergeable, CI-green, not labelled `hold`/`needs-human`, and has
+  a `pr-reviewer: LGTM <head-sha>` comment for the current head commit. Never
+  edit it to loosen those checks without a human's approval. Also enable
+  GitHub branch protection on `main` (and required CI on `dev`) as the real
+  backstop; agent permissions alone are not a security boundary.
+
+### Loops (one role per session)
+
+- **Reviewer:** `/loop 5m /review-loop` (`.claude/skills/review-loop/`).
+  Sweeps every open non-draft PR into `dev`, comments or signs off, and merges
+  green ones via the `pr-reviewer` agent.
+- **Worker:** `/loop 10m /worker-loop` (`.claude/skills/worker-loop/`). Holds
+  **one ticket at a time**, fixes review feedback on its PR
+  (`ticket-worker` step 8), and claims the next free ticket
+  (`/pick-ticket`) only after that PR is merged.
+
+Review state lives in GitHub (`pr-reviewer: LGTM|CHANGES|CONFLICT <sha>`
+comments, `needs-human` / `hold` labels); the issue assignee is the ticket
+lock. Any number of each role may run concurrently.
 
 ### Ticket workers and the orchestrator
 
