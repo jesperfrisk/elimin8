@@ -79,4 +79,4 @@ make frontend-test
 
 Tests cover real organizer/player browser contexts, mission batches and partial-failure recovery, mission toggles and persistence, joined-only start, MQTT lifecycle updates, assigned-target enforcement, elimination confirmation/decline/transfers, failed-response recovery, final victory, reconnect recovery, topic isolation, code reset, and API permissions. On Windows they use installed Microsoft Edge; elsewhere run `npx playwright install chromium` first. Override the browser with `PLAYWRIGHT_CHANNEL` and the server with `E2E_BASE_URL`. Test games are created in the configured development database and ended after successful checks; existing games are not deleted.
 
-See the [project README](../README.md) for the complete game rules and roadmap, and the [backend README](../backend/README.md) for the API architecture.
+See the [project README](../README.md) for the complete game rules, the [roadmap](../ROADMAP.md), and the [backend README](../backend/README.md) for the API architecture.

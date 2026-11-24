@@ -336,54 +336,7 @@ All participants can see the public Kill Board, but it must not reveal any secre
 
 ## 🗺️ Roadmap
 
-### Phase 1: MVP
-
-- [x] Create games
-- [x] Join games using invitation codes
-- [ ] Configure teams manually or randomly
-- [x] Configure missions
-- [x] Randomly assign private missions, exhausting enabled entries before reuse
-- [x] Assign private victims in one circle without self-targets
-- [ ] Generate team-safe victim assignments
-- [x] Reveal private assignments when games start
-- [x] Implement mutual elimination confirmation
-- [x] Transfer victims and missions automatically
-- [ ] Support confirmed player withdrawals
-- [ ] Create privacy-safe Kill Board
-- [ ] Track kills privately
-- [ ] Support optional game timers
-- [ ] Detect individual and team winners
-- [ ] Calculate game results
-
-### Phase 2: Improved Experience
-
-- [ ] Live game dashboard
-- [ ] Advanced post-game statistics
-
-### Phase 3: Frictionless Joining and Richer Play
-
-Joining and recovery:
-
-- [ ] One shared QR code per lobby (replaces per-player QR invitations): players scan it, enter their name, and press **Join**
-- [ ] Persistent cookie holding the player's unique ID, so they stay signed in as the same player
-- [ ] Cookie-loss recovery: players can re-enter their unique code to reclaim their player and have the cookie set again
-
-Eliminations and missions:
-
-- [ ] Notify an eliminated player that they are out, who eliminated them, and how (the mission used); the accept/decline step before elimination already exists
-- [ ] Mission presets (e.g. make someone laugh, high five, cheers, selfie) selectable when configuring a lobby
-- [ ] Dynamic targets and missions: only the *current* target can be eliminated, and a player's target and mission may change during play
-
-Media:
-
-- [ ] Upload a photo/selfie per game and per temporary player account
-- [ ] Object storage (RustFS or another S3-compatible store) in the Docker Compose infrastructure
-- [ ] Delete all uploaded images when the game ends
-
-Developer experience:
-
-- [ ] `make dev`: seed realistic test data (lobbies with believable players)
-- [ ] `make reset`: restore everything to a clean state
+Planned and completed work is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## 🤝 Contributing
 

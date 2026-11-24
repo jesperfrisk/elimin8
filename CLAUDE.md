@@ -6,9 +6,10 @@ Guidance for Claude Code (and other AI assistants) working in this repository.
 
 Elimin8 is a real-life social elimination game: every player gets a secret
 victim and mission, and a killer inherits their victim's target and mission
-when that victim is eliminated. See [README.md](README.md) for game rules
-and [backend/README.md](backend/README.md) / [frontend/README.md](frontend/README.md)
-for architecture.
+when that victim is eliminated. See [README.md](README.md) for game rules,
+[ROADMAP.md](ROADMAP.md) for planned work (keep its checkboxes current when
+shipping a feature), and [backend/README.md](backend/README.md) /
+[frontend/README.md](frontend/README.md) for architecture.
 
 - **Backend**: Go (`net/http`, official MongoDB driver v2), MongoDB, an
   embedded Mochi MQTT broker for realtime updates over WebSockets.
