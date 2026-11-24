@@ -33,7 +33,24 @@ func testStore(t *testing.T, handler http.HandlerFunc) *S3 {
 }
 
 // Return true when a request is initialization rather than an object operation.
+const allPublicBlocked = `<PublicAccessBlockConfiguration><BlockPublicAcls>true</BlockPublicAcls><IgnorePublicAcls>true</IgnorePublicAcls><BlockPublicPolicy>true</BlockPublicPolicy><RestrictPublicBuckets>true</RestrictPublicBuckets></PublicAccessBlockConfiguration>`
+
+func publicBlockInitialization(w http.ResponseWriter, r *http.Request) bool {
+	if !r.URL.Query().Has("publicAccessBlock") {
+		return false
+	}
+	if r.Method == "PUT" {
+		w.WriteHeader(200)
+	} else {
+		fmt.Fprint(w, allPublicBlocked)
+	}
+	return true
+}
+
 func privateInitialization(w http.ResponseWriter, r *http.Request) bool {
+	if publicBlockInitialization(w, r) {
+		return true
+	}
 	if r.Method == "HEAD" && r.URL.Path == "/test-photos" {
 		w.WriteHeader(200)
 		return true
@@ -61,6 +78,8 @@ func TestS3PrivateInitialization(t *testing.T) {
 					t.Errorf("unexpected path %s", r.URL.Path)
 				}
 				switch {
+				case r.URL.Query().Has("publicAccessBlock"):
+					publicBlockInitialization(w, r)
 				case r.Method == "HEAD":
 					if mode == "existing" {
 						w.WriteHeader(200)
@@ -105,6 +124,8 @@ func TestS3RejectsNonPrivateBucketsAndRedactsFailures(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch {
+				case r.URL.Query().Has("publicAccessBlock"):
+					publicBlockInitialization(w, r)
 				case r.Method == "HEAD":
 					if mode == "denied" {
 						s3Error(w, 403, "AccessDenied")
@@ -285,6 +306,66 @@ func TestS3RejectsBrokenPaginationAndForeignKeys(t *testing.T) {
 			})
 			if _, err := store.List(context.Background(), "games/GAME/photos/"); err == nil {
 				t.Fatal("accepted incomplete or unsafe listing")
+			}
+		})
+	}
+}
+
+func TestS3RustFSCompatibilityRequiresExplicitProviderAndPublicBlock(t *testing.T) {
+	for _, mode := range []string{"rustfs", "strict-s3", "extra-grant", "partial-control", "block-unsupported", "block-not-persisted"} {
+		t.Run(mode, func(t *testing.T) {
+			publicBlockPut := false
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == "HEAD":
+					w.WriteHeader(200)
+				case r.URL.Query().Has("acl"):
+					acl := strings.ReplaceAll(privateACL, "<ID>owner</ID></Grantee>", "</Grantee>")
+					if mode == "extra-grant" {
+						acl = strings.Replace(acl, "</AccessControlList>", `<Grant><Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser"></Grantee><Permission>FULL_CONTROL</Permission></Grant></AccessControlList>`, 1)
+					}
+					if mode == "partial-control" {
+						acl = strings.ReplaceAll(acl, "FULL_CONTROL", "READ")
+					}
+					fmt.Fprint(w, acl)
+				case r.URL.Query().Has("policy"):
+					s3Error(w, 404, "NoSuchBucketPolicy")
+				case r.URL.Query().Has("publicAccessBlock"):
+					if mode == "block-unsupported" {
+						s3Error(w, 400, "NotImplemented")
+						return
+					}
+					if r.Method == "PUT" {
+						publicBlockPut = true
+						body, _ := io.ReadAll(r.Body)
+						for _, setting := range []string{"BlockPublicAcls", "IgnorePublicAcls", "BlockPublicPolicy", "RestrictPublicBuckets"} {
+							if !bytes.Contains(body, []byte("<"+setting+">true</"+setting+">")) {
+								t.Errorf("public block setting %s not enforced", setting)
+							}
+						}
+						w.WriteHeader(200)
+					} else if mode == "block-not-persisted" {
+						fmt.Fprint(w, strings.ReplaceAll(allPublicBlocked, "true", "false"))
+					} else {
+						fmt.Fprint(w, allPublicBlocked)
+					}
+				default:
+					t.Error("unexpected request")
+					w.WriteHeader(400)
+				}
+			}))
+			defer server.Close()
+			provider := "rustfs"
+			if mode == "strict-s3" {
+				provider = "s3"
+			}
+			_, err := NewS3(context.Background(), S3Config{Endpoint: server.URL, Region: "us-east-1", Bucket: "test-photos", AccessKey: "test-access", SecretKey: "test-secret", Provider: provider})
+			if mode == "rustfs" {
+				if err != nil || !publicBlockPut {
+					t.Fatalf("compatible private RustFS rejected: %v", err)
+				}
+			} else if err == nil {
+				t.Fatal("accepted unsafe provider/ACL/public block")
 			}
 		})
 	}
