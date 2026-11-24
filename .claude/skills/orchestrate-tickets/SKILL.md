@@ -25,6 +25,12 @@ feature/* --PR--> dev --PR (human approves)--> main
 - `gh pr merge` is denied in project settings. If the user allows merging
   into `dev`, they approve that call. Never use it for `main`.
 
+> **Multi-person mode:** when several people pull from the same backlog, use
+> `/pick-ticket` instead of dispatching; the assignee on each issue is the
+> lock. This skill is for slicing/filing tickets and for one person fanning
+> out their own workers. Workers claim their issue themselves (ticket-worker
+> step 0), so don't assign issues you aren't about to work.
+
 ## 1. Slice into tickets
 
 - Input is a goal, a PRD, or existing issue numbers. For a goal/PRD, follow
@@ -51,7 +57,8 @@ feature/* --PR--> dev --PR (human approves)--> main
   the model and worktree; don't restate rules.
 - Cap concurrency at ~4 workers; conflicts and review load grow faster than
   throughput.
-- Label the issue `in-progress` when dispatched.
+- Workers claim the issue (assignee + `in-progress`) themselves; if a worker
+  reports `TAKEN`, move on to the next ticket.
 
 ## 3. Handle worker reports
 
@@ -68,7 +75,8 @@ Never trust "tests pass" in a report blindly: confirm with `gh pr checks`.
 
 - When a PR lands in `dev`, check the others:
   `gh pr list --base dev --json number,mergeable,headRefName`.
-- For a conflicting PR: spawn a fresh `ticket-worker` (or do a small one
+- The PR's author owns its conflicts (ticket-worker step 6). If the owner is
+  absent, for a conflicting PR: spawn a fresh `ticket-worker` (or do a small one
   yourself in a worktree) to `git fetch && git rebase origin/dev`, resolve
   keeping both sides' intent, re-run `make check`, then
   `git push --force-with-lease origin HEAD:<feature-branch>`.
