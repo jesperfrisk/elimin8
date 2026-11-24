@@ -38,6 +38,8 @@ type GameService struct {
 	// the same mutex; MongoDB revision checks also serialize other API instances.
 	locks  [256]sync.Mutex
 	Notify func()
+	// Intn overrides random selection for team randomization (tests); nil uses crypto/rand.
+	Intn func(int) int
 }
 
 func NewGameService(repo GameRepository) *GameService { return &GameService{repo: repo} }

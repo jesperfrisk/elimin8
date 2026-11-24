@@ -83,6 +83,9 @@ func gameError(w http.ResponseWriter, err error) {
 	case errors.Is(err, services.ErrElimination), errors.Is(err, services.ErrPendingElimination):
 		status = 409
 		message = err.Error()
+	case errors.Is(err, services.ErrTeamSetup):
+		status = 409
+		message = err.Error()
 	case errors.Is(err, services.ErrLobbyClosed):
 		status = 409
 		message = err.Error()
