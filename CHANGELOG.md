@@ -27,6 +27,11 @@ Notable changes and the reasoning behind them. Format loosely follows
 - GitHub CI (gofmt, vet, backend tests, frontend build) on PRs into `dev` and
   `main`, a check that only `dev` may target `main`, plus PR and ticket
   templates. `make check` runs the same gate locally.
+- README roadmap "Phase 3": single lobby QR code with cookie-based player
+  identity and code recovery, mission presets, elimination notifications
+  (who/how), dynamic targets, selfie uploads with S3-compatible storage
+  (RustFS) deleted at game end, and `make dev` / `make reset`. The
+  accept/decline elimination flow and target-only kills already existed.
 - Host ports for `mongodb`, `backend`, and `frontend` in `compose.yaml` are
   now overridable via `MONGODB_PORT`, `BACKEND_PORT`, and `FRONTEND_PORT` in
   a root `.env` file (see `.env.example`). Previously the only way to work
