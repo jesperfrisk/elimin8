@@ -26,5 +26,7 @@ type Store interface {
 	Put(context.Context, string, []byte) error
 	Get(context.Context, string) ([]byte, error)
 	Delete(context.Context, string) error
+	// List returns a bounded batch, which may not exhaust the prefix. Cleanup
+	// callers delete the returned objects and revisit the prefix on later sweeps.
 	List(context.Context, string) ([]Object, error)
 }

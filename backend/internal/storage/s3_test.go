@@ -8,7 +8,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -368,5 +370,78 @@ func TestS3RustFSCompatibilityRequiresExplicitProviderAndPublicBlock(t *testing.
 				t.Fatal("accepted unsafe provider/ACL/public block")
 			}
 		})
+	}
+}
+
+func TestS3BoundedListingMakesProgressBeyondObjectLimit(t *testing.T) {
+	const total = maxListedObjects + 1
+	const prefix = "games/GAME/photos/"
+	key := func(index int) string { return fmt.Sprintf("%sP%06d", prefix, index) }
+	var mu sync.Mutex
+	removed := map[string]bool{}
+	pages := 0
+	store := testStore(t, func(w http.ResponseWriter, r *http.Request) {
+		if privateInitialization(w, r) {
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		pages++
+		if pages > 103 {
+			t.Error("listing exceeded bounded page requests")
+			w.WriteHeader(400)
+			return
+		}
+		start := 0
+		if token := r.URL.Query().Get("continuation-token"); token != "" {
+			var err error
+			start, err = strconv.Atoi(token)
+			if err != nil {
+				t.Error("invalid continuation token")
+				w.WriteHeader(400)
+				return
+			}
+		}
+		index, count := start, 0
+		var contents strings.Builder
+		for index < total && count < 1000 {
+			objectKey := key(index)
+			index++
+			if removed[objectKey] {
+				continue
+			}
+			count++
+			fmt.Fprintf(&contents, "<Contents><Key>%s</Key><LastModified>2026-01-02T03:04:05Z</LastModified></Contents>", objectKey)
+		}
+		truncated := index < total
+		fmt.Fprintf(w, "<ListBucketResult><IsTruncated>%v</IsTruncated>", truncated)
+		if truncated {
+			fmt.Fprintf(w, "<NextContinuationToken>%d</NextContinuationToken>", index)
+		}
+		fmt.Fprint(w, contents.String(), "</ListBucketResult>")
+	})
+	first, err := store.List(context.Background(), prefix)
+	if err != nil || len(first) != maxListedObjects {
+		t.Fatalf("first bounded batch length=%d error=%v", len(first), err)
+	}
+	if first[0].Key != key(0) || first[len(first)-1].Key != key(maxListedObjects-1) {
+		t.Fatal("first batch missing expected range")
+	}
+	// Simulate deleting the returned batch, then revisit the same prefix.
+	mu.Lock()
+	for _, object := range first {
+		removed[object.Key] = true
+	}
+	mu.Unlock()
+	second, err := store.List(context.Background(), prefix)
+	if err != nil || len(second) != 1 || second[0].Key != key(maxListedObjects) {
+		t.Fatalf("remainder batch length=%d error=%v", len(second), err)
+	}
+	mu.Lock()
+	removed[second[0].Key] = true
+	mu.Unlock()
+	empty, err := store.List(context.Background(), prefix)
+	if err != nil || len(empty) != 0 {
+		t.Fatalf("completed prefix length=%d error=%v", len(empty), err)
 	}
 }
