@@ -66,6 +66,7 @@ func run() error {
 	outboxCtx, stopOutbox := context.WithCancel(ctx)
 	defer stopOutbox()
 	go broker.RunOutbox(outboxCtx, gameRepo)
+	go gameService.RunTimerSweep(outboxCtx, 5*time.Second)
 	controllers.NewGameController(gameService).Register(mux)
 	mux.Handle("GET /api/mqtt", broker)
 

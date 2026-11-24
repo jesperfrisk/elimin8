@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jesperfrisk/elimin8/backend/internal/models"
 	"github.com/jesperfrisk/elimin8/backend/internal/services"
@@ -99,6 +100,25 @@ func (r *GameRepository) Pending(ctx context.Context) ([]models.Game, error) {
 	var games []models.Game
 	err = cursor.All(ctx, &games)
 	return games, err
+}
+
+func (r *GameRepository) DueTimers(ctx context.Context, now time.Time) ([]string, error) {
+	cursor, err := r.games.Find(ctx, bson.M{"status": "active", "timer.endsAt": bson.M{"$lte": now}}, options.Find().SetProjection(bson.M{"_id": 1}).SetLimit(100))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	var games []struct {
+		ID string `bson:"_id"`
+	}
+	if err = cursor.All(ctx, &games); err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(games))
+	for i, g := range games {
+		ids[i] = g.ID
+	}
+	return ids, nil
 }
 
 func (r *GameRepository) Published(ctx context.Context, id string, revision int64) error {

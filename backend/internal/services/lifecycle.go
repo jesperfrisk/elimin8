@@ -142,6 +142,9 @@ func (s *GameService) Authorize(ctx context.Context, token string) (models.Acces
 	if err != nil {
 		return a, nil, err
 	}
+	if g, err = s.ExpireDue(ctx, g); err != nil {
+		return a, nil, err
+	}
 	if a.PlayerID != "" {
 		for _, p := range g.Players {
 			if p.ID == a.PlayerID && p.CredentialVersion == a.Version && p.JoinedAt != nil && (g.Status == "lobby" || p.Included || g.StartedAt == nil) {
@@ -158,7 +161,7 @@ func (s *GameService) Transition(ctx context.Context, a models.Access, action st
 		return ErrForbidden
 	}
 	_, err := s.mutate(ctx, a.GameID, func(g *models.Game) error {
-		now := time.Now().UTC()
+		now := s.now()
 		switch action {
 		case "start":
 			if g.Status == "ended" {
@@ -180,6 +183,7 @@ func (s *GameService) Transition(ctx context.Context, a models.Access, action st
 			}
 			g.Status = "active"
 			g.StartedAt = &now
+			startTimer(g, now)
 			for i := range g.Players {
 				g.Players[i].Included = g.Players[i].JoinedAt != nil
 			}

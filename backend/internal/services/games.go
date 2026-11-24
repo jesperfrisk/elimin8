@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/jesperfrisk/elimin8/backend/internal/models"
 )
@@ -30,6 +31,8 @@ type GameRepository interface {
 	Save(context.Context, *models.Game, int64) error
 	PutAccess(context.Context, models.Access) error
 	GetAccess(context.Context, string) (models.Access, error)
+	// DueTimers lists active games whose timer deadline is at or before now.
+	DueTimers(context.Context, time.Time) ([]string, error)
 }
 
 type GameService struct {
@@ -40,6 +43,8 @@ type GameService struct {
 	Notify func()
 	// Intn overrides random selection for team randomization (tests); nil uses crypto/rand.
 	Intn func(int) int
+	// Now overrides the clock for timer logic (tests); nil uses time.Now.
+	Now func() time.Time
 }
 
 func NewGameService(repo GameRepository) *GameService { return &GameService{repo: repo} }
@@ -61,7 +66,22 @@ func (s *GameService) mutate(ctx context.Context, id string, fn func(*models.Gam
 			return nil, err
 		}
 		previous := g.Revision
-		if err = fn(g); err != nil {
+		// Lazy expiry: persist a due timer first so fn sees the ended game.
+		if s.expireTimer(g, s.now()) {
+			g.Revision++
+			err = s.repo.Save(ctx, g, previous)
+			if errors.Is(err, ErrConflict) {
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+			s.changed()
+			continue
+		}
+		if err = fn(g); errors.Is(err, errNoChange) {
+			return g, nil
+		} else if err != nil {
 			return nil, err
 		}
 		g.Revision++
