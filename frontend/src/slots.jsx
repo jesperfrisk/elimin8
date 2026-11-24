@@ -1,4 +1,5 @@
 import React from "react";
+import { Withdrawal } from "./Withdrawal";
 
 // Extension points for new game panels.
 //
@@ -23,7 +24,7 @@ import { Teams } from "./Teams";
 export const lobbyPanels = [Timer, Teams];
 
 // game.status === "active"
-export const inGamePanels = [Timer, Teams];
+export const inGamePanels = [Timer, Teams, Withdrawal];
 
 // game.status === "ended"
 export const gameOverPanels = [];

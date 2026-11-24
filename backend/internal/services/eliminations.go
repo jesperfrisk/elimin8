@@ -7,10 +7,15 @@ import (
 	"github.com/jesperfrisk/elimin8/backend/internal/models"
 )
 
+// stillPlaying reports whether a participant is neither eliminated nor withdrawn.
+func stillPlaying(p *models.Player) bool {
+	return p.Included && p.EliminatedAt == nil && p.WithdrawnAt == nil
+}
+
 func livingPlayer(g *models.Game, id string) *models.Player {
 	for i := range g.Players {
 		p := &g.Players[i]
-		if p.ID == id && p.Included && p.EliminatedAt == nil {
+		if p.ID == id && stillPlaying(p) {
 			return p
 		}
 	}
@@ -86,15 +91,21 @@ func transferElimination(g *models.Game, killer, victim *models.Player, now time
 	recordKill(killer)
 	victim.EliminatedAt = &now
 	victim.VictimID, victim.Mission = "", ""
+	endIfLastSurvivor(g, killer, now)
+}
+
+// endIfLastSurvivor ends the game when survivor is the only participant left
+// (shared by eliminations and withdrawals).
+func endIfLastSurvivor(g *models.Game, survivor *models.Player, now time.Time) {
 	remaining := 0
-	for _, p := range g.Players {
-		if p.Included && p.EliminatedAt == nil {
+	for i := range g.Players {
+		if stillPlaying(&g.Players[i]) {
 			remaining++
 		}
 	}
 	if remaining == 1 {
-		killer.VictimID, killer.Mission = "", ""
-		g.Status, g.EndedAt, g.WinnerID = "ended", &now, killer.ID
+		survivor.VictimID, survivor.Mission = "", ""
+		g.Status, g.EndedAt, g.WinnerID = "ended", &now, survivor.ID
 		return
 	}
 	// Team mode: never leave a hunter targeting a teammate. When no safe circle

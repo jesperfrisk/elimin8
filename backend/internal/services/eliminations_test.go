@@ -57,7 +57,7 @@ func TestEliminationDeclinePrivacyAndReconnect(t *testing.T) {
 		var fields []map[string]any
 		_ = json.Unmarshal(data, &fields)
 		for _, p := range fields {
-			if len(p) != 2 || p["id"] == nil || p["name"] == nil {
+			if len(p) != 3 || p["id"] == nil || p["name"] == nil || p["status"] != "active" {
 				t.Fatalf("roster leaks assignments: %s", data)
 			}
 		}

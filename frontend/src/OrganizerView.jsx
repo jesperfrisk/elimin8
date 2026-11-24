@@ -125,7 +125,7 @@ export function OrganizerView({ game, access, run, busy, action, refresh }) {
                               ? "Joined"
                               : "Invited"
                             : p.included
-                              ? p.eliminatedAt ? "Eliminated" : "Active"
+                              ? p.status === "withdrawn" ? "Withdrawn" : p.eliminatedAt ? "Eliminated" : "Active"
                               : "Not included"}
                         </span>
                       </td>

@@ -9,7 +9,7 @@ export function Eliminations({ game, access, action, busy }) {
   const incoming = claims.find(c => c.status === "pending" && c.victimId === me?.id);
   const outgoing = claims.find(c => c.status === "pending" && c.killerId === me?.id);
   const name = id => participants.find(p => p.id === id)?.name || "A player";
-  const canReport = game.status === "active" && me?.included && !me.eliminatedAt && !outgoing;
+  const canReport = game.status === "active" && me?.included && !me.eliminatedAt && me.status !== "withdrawn" && !outgoing;
   const target = me?.victim;
   useEffect(() => {
     if (incoming) {

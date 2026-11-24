@@ -6,6 +6,7 @@ import "time"
 type ParticipantView struct {
 	ID           string     `json:"id"`
 	Name         string     `json:"name"`
+	Status       string     `json:"status"` // active | eliminated | withdrawn
 	EliminatedAt *time.Time `json:"eliminatedAt,omitempty"`
 }
 
@@ -14,6 +15,7 @@ type PlayerView struct {
 	Name         string      `json:"name"`
 	JoinedAt     *time.Time  `json:"joinedAt"`
 	Included     bool        `json:"included"`
+	Status       string      `json:"status,omitempty"` // set for participants once the game has started
 	Mission      string      `json:"mission,omitempty"`
 	Victim       *VictimView `json:"victim,omitempty"`
 	EliminatedAt *time.Time  `json:"eliminatedAt,omitempty"`
