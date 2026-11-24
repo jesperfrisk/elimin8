@@ -1,6 +1,6 @@
 # Elimin8 Backend
 
-The backend is a Go HTTP API backed by MongoDB, with an embedded Mochi MQTT broker for realtime updates. It manages games, organizer-owned rosters, private-code access, lobby missions, private assignments, mutually confirmed eliminations, assignment transfers, and last-player victory. Teams, withdrawals, timers, and scoring remain future work.
+The backend is a Go HTTP API backed by MongoDB, with an embedded Mochi MQTT broker for realtime updates. It manages games, organizer-owned rosters, private-code access, lobby missions, private assignments, mutually confirmed eliminations, confirmed player withdrawals, assignment transfers, and last-player victory. Teams, timers, and scoring remain future work.
 
 ## Structure
 
@@ -33,9 +33,10 @@ Models, services and controllers are split by domain so feature work mostly owns
 | Missions | `mission.go` | `missions.go` | `missions.go` |
 | Eliminations | `elimination.go` | `eliminations.go`, `victims.go` | `eliminations.go` |
 | API views | `views.go` | `views.go` | |
-| Teams, withdrawals, timer, results | `teams.go`, `withdrawals.go`, `timer.go`, `results.go` | same names | same names (route-less placeholders) |
+| Withdrawals | `withdrawals.go` | `withdrawals.go` | `withdrawals.go` |
+| Teams, timer, results | `teams.go`, `timer.go`, `results.go` | same names | same names (route-less placeholders) |
 
-Phase 1 fields are reserved on `Game` (`Mode`, `Teams`, `Timer`, `EndReason`, `Result`) and `Player` (`TeamID`, `WithdrawnAt`, `ConfirmedKills`). They are `omitempty`, carry no JSON tags, and are not exposed in any view until their feature adds them.
+Phase 1 fields are reserved on `Game` (`Mode`, `Teams`, `Timer`, `EndReason`, `Result`) and `Player` (`TeamID`, `ConfirmedKills`). They are `omitempty`, carry no JSON tags, and are not exposed in any view until their feature adds them.
 
 **Adding a domain or route:** put handlers in `controllers/<domain>.go` with a `register<Domain>(mux)` method that calls `mux.HandleFunc(...)`, then add one `c.register<Domain>(mux)` line to `GameController.Register` in `controllers/games.go` (the placeholder domains are already wired). Put rules in `services/<domain>.go` and types in `models/<domain>.go`.
 
@@ -104,7 +105,7 @@ In team mode, starting requires every joined player on a team and at least two t
 
 Team-safe assignment (`services/victims.go`): in team mode the start circle has no victim on the hunter's own team. A safe circle exists only when at least two players remain and no team holds more than half of them. Otherwise start fails with `ErrNoValidAssignment` (HTTP 409) and writes no assignments. After every elimination transfer, `repairTeamCircle` reorders the living circle (a two-player swap, else a full re-deal) if a hunter would otherwise target a teammate; missions stay with their holders. If no safe circle remains, the transfer stands unchanged and callers detect it with `ValidAssignmentExists(game) bool`, which counts joined players before the start and included, non-eliminated players afterwards. The winner logic (#19) should use that predicate; withdrawals should call `repairTeamCircle` once after relinking. Individual mode is unchanged. Randomness is injectable through the `victimIntn` package variable in tests.
 
-After starting, `participants` contains only IDs, names, and elimination timestamps as shared participant information. Private `eliminations` contains only reports involving the caller; organizers can read all reports. Eliminated players retain login access but no assignment or ability to report. MQTT invalidations carry no report details; authorized state fetches deliver the confirmation prompt, including after reconnects. Existing documents without elimination fields work without a migration.
+After starting, `participants` contains only IDs, names, a `status` (`active`, `eliminated`, or `withdrawn`), and elimination timestamps as shared participant information. Private `eliminations` contains only reports involving the caller; organizers can read all reports. Eliminated players retain login access but no assignment or ability to report. MQTT invalidations carry no report details; authorized state fetches deliver the confirmation prompt, including after reconnects. Existing documents without elimination fields work without a migration.
 
 Startup creates a unique invitation-code index and the access-token TTL index. Game documents are created by API requests; no seed data or manual database migration is necessary.
 
@@ -126,7 +127,7 @@ See the [project README](../README.md) for the complete game rules and the [road
 
 ## Current Status
 
-Game lifecycle, organizer rosters, lobby missions, private assignments, mutual elimination confirmation, atomic transfers, last-player victory, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented. Withdrawals, teams, timers, and scoring remain future work.
+Game lifecycle, organizer rosters, lobby missions, private assignments, mutual elimination confirmation, atomic transfers, last-player victory, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented. Teams, timers, and scoring remain future work.
 
 ## Game API
 
@@ -146,6 +147,8 @@ Game lifecycle, organizer rosters, lobby missions, private assignments, mutual e
 | POST | `/api/games/{id}/teams/randomize` | Organizer, lobby, team mode: `{ "teamCount": n }` (2 to joined players) deals joined players into balanced teams and persists them |
 | POST | `/api/games/{id}/eliminations` | Living player, active game: report the assigned target with `{ "victimId": "..." }`; returns a pending claim |
 | POST | `/api/games/{id}/eliminations/{claim}/response` | Named victim: respond with `{ "accept": true }` or `{ "accept": false }` |
+| POST | `/api/games/{id}/withdrawals` | Living player, active game: ask to withdraw; returns `{ "withdrawalToken", "expiresAt" }`. Changes nothing until confirmed; the token expires after two minutes |
+| POST | `/api/games/{id}/withdrawals/confirm` | Same player: confirm with `{ "withdrawalToken": "..." }`; returns 204. Marks the player withdrawn (not a kill), their hunter inherits the victim and mission, and the last survivor wins as after an elimination |
 | GET (upgrade) | `/api/mqtt` | Authenticated MQTT over WebSockets |
 
 Protected HTTP requests use `Authorization: Bearer <token>`. Tokens expire after 12 hours. Private codes are normalized to uppercase with spaces/hyphens ignored, and hashed with scrypt using the random game ID as salt. Player codes have eight unambiguous random characters; organizer management codes have 24. Code reset preserves joined status and the frozen participant roster while incrementing the credential version. Players receive their own assignments and a safe participant list after starting; only organizers receive other players' assignments. No response exposes stored hashes.
