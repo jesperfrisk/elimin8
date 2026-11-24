@@ -357,3 +357,27 @@ func TestConcurrentWithdrawalsKeepTheCircleValid(t *testing.T) {
 		t.Fatalf("game should end once with one winner: status=%s withdrawn=%d winner=%q", g.Status, withdrawn, g.WinnerID)
 	}
 }
+
+func TestWithdrawalInTeamModeRepairsTeammateTargets(t *testing.T) {
+	ctx := context.Background()
+	s, repo, a := eliminationGame(t, 5) // 0 -> 1 -> 2 -> 3 -> 4 -> 0
+	g, _ := repo.Get(ctx, a[0].GameID)
+	g.Mode = models.ModeTeam
+	for i, team := range []string{"A", "B", "A", "B", "B"} {
+		g.Players[i].TeamID = team
+	}
+	repo.Games[g.ID] = g
+	// Player 1 leaving would hand player 0 a teammate (player 2) as victim.
+	withdraw(t, s, a[1])
+	g, _ = repo.Get(ctx, a[0].GameID)
+	assertCircle(t, g)
+	teams := map[string]string{}
+	for _, p := range g.Players {
+		teams[p.ID] = p.TeamID
+	}
+	for _, p := range g.Players {
+		if p.WithdrawnAt == nil && p.VictimID != "" && teams[p.VictimID] == p.TeamID {
+			t.Fatalf("player %s targets teammate %s after withdrawal", p.ID, p.VictimID)
+		}
+	}
+}
