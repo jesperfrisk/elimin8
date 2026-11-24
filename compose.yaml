@@ -40,6 +40,7 @@ services:
       MONGODB_URI: "mongodb://mongodb:27017"
       MONGODB_DATABASE: "elimin8"
       PHOTO_STORAGE_ENDPOINT: "http://rustfs:9000"
+      PHOTO_STORAGE_PROVIDER: "rustfs"
       PHOTO_STORAGE_REGION: "${PHOTO_STORAGE_REGION:-us-east-1}"
       PHOTO_STORAGE_BUCKET: "${PHOTO_STORAGE_BUCKET:-elimin8-photos}"
       PHOTO_STORAGE_ACCESS_KEY: "${PHOTO_STORAGE_ACCESS_KEY:?Set PHOTO_STORAGE_ACCESS_KEY in .env}"
