@@ -30,6 +30,34 @@ make frontend-build
 
 `npm run preview` previews static assets only; use the development server or Docker to exercise the API proxy.
 
+## Source Layout
+
+`src/main.jsx` only bootstraps React. Everything else is one component per file:
+
+| File | Responsibility |
+| --- | --- |
+| `App.jsx` | App shell, hash routing, saved access, shared `run`/`busy` helpers |
+| `Home.jsx`, `OrganizerHome.jsx`, `PlayerHome.jsx`, `LoginForm.jsx` | Landing, create/join, and code entry pages |
+| `GamePage.jsx` | Game frame shared by both roles (heading, stats, management code) and the panel slot |
+| `OrganizerView.jsx` | Organizer roster, start/end, add players, private codes, lobby missions |
+| `PlayerView.jsx` | Player status card, victim/mission, eliminations |
+| `LobbyMissions.jsx`, `Eliminations.jsx` | Existing feature panels |
+| `slots.jsx` | Extension points for new panels (below) |
+| `common.jsx` | Shared helpers: `PageHeading`, `CopyButton`, `formatDate` |
+| `api.js`, `useGame.js`, `gameActionError.js` | API client, game state and MQTT hook, error messages |
+
+### Adding a panel
+
+New game features (teams, withdrawals, Kill Board, timer, results) are added as their own file plus two lines in `src/slots.jsx`: an import and one entry in the array for the phase where the panel appears.
+
+| Array | Rendered when | Typical use |
+| --- | --- | --- |
+| `lobbyPanels` | `game.status === "lobby"` | team editor, timer setup |
+| `inGamePanels` | `game.status === "active"` | withdrawal, Kill Board, countdown |
+| `gameOverPanels` | `game.status === "ended"` | results |
+
+Panels render below the existing game content for every viewer and receive `game`, `access`, `action` and `busy` (see the comment in `slots.jsx`). A panel checks `access.role` itself and returns `null` when it has nothing to show. The arrays are empty today, so they add no markup.
+
 ## Planned Experience
 
 - Create games and configure rules, missions, teams, and optional timers.
