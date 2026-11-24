@@ -120,7 +120,16 @@ func (s *PhotoService) Put(ctx context.Context, a models.Access, playerID string
 		return nil
 	})
 	if err != nil {
-		s.discard(ctx, key)
+		// A database timeout can mean the revision-checked write committed but
+		// its acknowledgement was lost. Deleting this key would then break the
+		// persisted reference. Only semantic precommit failures are definitive;
+		// leave other staged objects for the durable post-game prefix sweep.
+		switch {
+		case errors.Is(err, ErrUnauthorized), errors.Is(err, ErrForbidden),
+			errors.Is(err, ErrGameEnded), errors.Is(err, ErrLobbyClosed),
+			errors.Is(err, ErrInvalid), errors.Is(err, ErrNotFound):
+			s.discard(ctx, key)
+		}
 		return "", err
 	}
 	if previous != "" {
