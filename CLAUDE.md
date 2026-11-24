@@ -64,14 +64,19 @@ feature/* | fix/* | chore/*  --PR-->  dev  --PR (human approves)-->  main
   GitHub branch protection on `main` (and required CI on `dev`) as the real
   backstop; agent permissions alone are not a security boundary.
 
-### Per-person loop
+### Loops (one role per session)
 
-Each team member runs `/loop 10m /team-loop` locally
-(`.claude/skills/team-loop/`). One tick: fix feedback on your own PRs
-(`ticket-worker` step 8) -> review/merge others' PRs into `dev`
-(`pr-reviewer` skill/agent) -> `/pick-ticket` if idle. Review state lives in
-GitHub (`pr-reviewer: LGTM|CHANGES|CONFLICT <sha>` comments, `needs-human` /
-`hold` labels); the issue assignee is the ticket lock.
+- **Reviewer:** `/loop 5m /review-loop` (`.claude/skills/review-loop/`).
+  Sweeps every open non-draft PR into `dev`, comments or signs off, and merges
+  green ones via the `pr-reviewer` agent.
+- **Worker:** `/loop 10m /worker-loop` (`.claude/skills/worker-loop/`). Holds
+  **one ticket at a time**, fixes review feedback on its PR
+  (`ticket-worker` step 8), and claims the next free ticket
+  (`/pick-ticket`) only after that PR is merged.
+
+Review state lives in GitHub (`pr-reviewer: LGTM|CHANGES|CONFLICT <sha>`
+comments, `needs-human` / `hold` labels); the issue assignee is the ticket
+lock. Any number of each role may run concurrently.
 
 ### Ticket workers and the orchestrator
 

@@ -22,7 +22,7 @@ feature/* --PR--> dev --PR (human approves)--> main
   and the `pr-reviewer` has left `pr-reviewer: LGTM <sha>`. Merging into `dev`
   is done only by the `pr-reviewer` flow via `.claude/scripts/merge-to-dev.sh`;
   you never call `gh pr merge`. Spawn the `pr-reviewer` subagent after PRs go
-  ready, or tell the user to run `/loop 10m /team-loop`.
+  ready, or tell the user to run `/loop 5m /review-loop`.
 - Workers branch from `origin/dev` and open PRs back to `dev`.
 - `gh pr merge` is denied in project settings; only the guarded script
   (base must be `dev`) is allowed. Never use either for `main`.

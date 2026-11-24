@@ -1,6 +1,6 @@
 ---
 name: pr-reviewer
-description: Reviews open PRs targeting `dev`, leaves review comments, and squash-merges green, approved ones into `dev` via the guarded merge script. Never merges to `main`. Spawned by `/review-prs` or `/team-loop`.
+description: Reviews open PRs targeting `dev`, leaves review comments, and squash-merges green, approved ones into `dev` via the guarded merge script. Never merges to `main`. Spawned by `/review-loop`.
 model: claude-sonnet-5-5
 isolation: worktree
 skills:

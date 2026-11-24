@@ -1,6 +1,6 @@
 ---
 name: pr-reviewer
-description: Playbook for reviewing open PRs into dev, leaving comments, and merging green ones via the guarded script. Invoke as /pr-reviewer [pr#]. Used by the pr-reviewer subagent and by /team-loop.
+description: Playbook for reviewing open PRs into dev, leaving comments, and merging green ones via the guarded script. Invoke as /pr-reviewer [pr#]. Used by the pr-reviewer subagent and by /review-loop.
 ---
 
 # PR reviewer

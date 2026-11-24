@@ -40,5 +40,6 @@ file under "Owns files" must not run in parallel: if one of those is already
   squash-merges into `dev` through `.claude/scripts/merge-to-dev.sh` once CI is
   green; you fix its comments (`ticket-worker` step 8). `dev` -> `main` is a
   human-only release PR (`/orchestrate-tickets` section 5).
-- Running this in a loop? Use `/loop 10m /team-loop`, which also fixes your
-  PRs' feedback and reviews/merges others' before picking new work.
+- Running this in a loop? Use `/loop 10m /worker-loop`: it holds one ticket
+  at a time, fixes review feedback on it, and calls this skill again only
+  after its PR is merged. Never claim a second ticket while you hold one.

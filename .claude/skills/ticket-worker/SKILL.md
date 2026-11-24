@@ -78,7 +78,7 @@ Target **<= ~150k tokens** for the whole ticket. To stay inside it:
 8. **Address feedback until merged.** Merging is done by the `pr-reviewer`
    loop (`.claude/scripts/merge-to-dev.sh`), never by you. When CI is green and
    the branch is rebased, mark the PR ready: `gh pr ready <pr>`. Then, on every
-   later run (`/team-loop` re-enters here for your open PRs), check
+   later run (`/worker-loop` re-enters here for your one open PR), check
    `gh pr view <pr> --json comments,reviews,mergeable,statusCheckRollup`:
    - `pr-reviewer: CHANGES <sha>` comment, human review comments, red CI, or
      conflicts -> fix on the same branch in small commits (rebase per step 6),
