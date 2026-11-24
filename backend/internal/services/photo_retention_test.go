@@ -58,6 +58,7 @@ type retentionStore struct {
 	listFailures   map[string]int
 	deleted        []string
 	afterList      func()
+	beforeList     func(context.Context, string) error
 	onDelete       func()
 	unrelated      bool
 	listLimit      int
@@ -101,6 +102,11 @@ func (s *retentionStore) Delete(ctx context.Context, key string) error {
 	return nil
 }
 func (s *retentionStore) List(ctx context.Context, prefix string) ([]storage.Object, error) {
+	if s.beforeList != nil {
+		if err := s.beforeList(ctx, prefix); err != nil {
+			return nil, err
+		}
+	}
 	s.mu.Lock()
 	if s.listFailures[prefix] > 0 {
 		s.listFailures[prefix]--
@@ -510,5 +516,49 @@ func TestPhotoRetentionBoundedListingsProgressAcrossRestart(t *testing.T) {
 	}
 	if len(store.deleted) != 6 {
 		t.Fatal("bounded listings left objects behind after repeated sweeps")
+	}
+}
+
+func TestPhotoRetentionBoundsEachGameAndContinuesAfterTimeout(t *testing.T) {
+	now := time.Now().UTC()
+	games, repo, store := retentionFixture(t, endedPhotoGame("a-failing", now.Add(-48*time.Hour)), endedPhotoGame("z-next", now.Add(-48*time.Hour)))
+	store.seed("games/a-failing/photos/current")
+	store.seed("games/z-next/photos/current")
+	seen := map[string]context.Context{}
+	store.beforeList = func(ctx context.Context, prefix string) error {
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) <= 0 || time.Until(deadline) > 30*time.Second {
+			t.Fatal("purge did not receive a bounded per-game deadline")
+		}
+		seen[prefix] = ctx
+		if prefix == "games/a-failing/photos/" {
+			return context.DeadlineExceeded
+		}
+		return nil
+	}
+	job := newRetention(games, repo, store, now)
+	parent, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	if err := job.Sweep(parent); err == nil {
+		t.Fatal("per-game timeout was hidden")
+	}
+	if parent.Err() != nil {
+		t.Fatal("one game timeout cancelled the whole sweep")
+	}
+	first, _ := repo.Get(context.Background(), "a-failing")
+	last, _ := repo.Get(context.Background(), "z-next")
+	if first.Players[0].PhotoID == "" || !store.has("games/a-failing/photos/current") {
+		t.Fatal("failed game lost its current reference")
+	}
+	if last.Players[0].PhotoID != "" || store.has("games/z-next/photos/current") {
+		t.Fatal("timed-out first game starved later game")
+	}
+	if len(seen) != 2 {
+		t.Fatal("did not visit both games")
+	}
+	for _, gameCtx := range seen {
+		if gameCtx.Err() != context.Canceled {
+			t.Fatal("per-game timer was not released")
+		}
 	}
 }

@@ -11,7 +11,10 @@ import (
 	"github.com/jesperfrisk/elimin8/backend/internal/storage"
 )
 
-const photoRetentionBatchSize = 100
+const (
+	photoRetentionBatchSize   = 100
+	photoRetentionGameTimeout = 30 * time.Second
+)
 
 // PhotoRetentionRepository discovers persisted expired games using keyset pages.
 // It is separate from GameRepository so unrelated game stores need not implement it.
@@ -69,7 +72,12 @@ func (s *PhotoRetentionService) Sweep(ctx context.Context) error {
 				return errors.Join(failure, errors.New("photo retention discovery did not advance"))
 			}
 			afterID = id
-			if err := s.purge(ctx, id, endedBefore); err != nil {
+			// One slow or failing prefix must not monopolize the sweep. The
+			// shorter parent deadline, if any, is preserved by WithTimeout.
+			gameCtx, cancel := context.WithTimeout(ctx, photoRetentionGameTimeout)
+			err := s.purge(gameCtx, id, endedBefore)
+			cancel()
+			if err != nil {
 				failure = errors.New("photo retention cleanup failed")
 			}
 			if err := ctx.Err(); err != nil {
