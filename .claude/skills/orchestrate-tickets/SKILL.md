@@ -66,7 +66,7 @@ feature/* --PR--> dev --PR (human approves)--> main
 
 | Report | Action |
 |---|---|
-| `DONE` | Verify the PR exists, is draft, targets `dev`, has `Closes #n`. Check `gh pr checks`. Mark ready for review once CI is green; the `pr-reviewer` then reviews/merges and the worker's loop fixes any `pr-reviewer: CHANGES` comments. |
+| `DONE` | Verify the PR exists, is non-draft (`gh pr ready` if not), targets `dev`, has `Closes #n`. Check `gh pr checks`. The `pr-reviewer` then reviews/merges and the worker's loop fixes any `pr-reviewer: CHANGES` comments. |
 | `NEEDS-SPLIT` | Re-slice into smaller issues, comment on and close the original, dispatch the pieces. |
 | `NEEDS-INPUT` | Relay the exact question to the user; don't guess. |
 | `BLOCKED` | Wait for the blocker's PR to land in `dev`, then re-dispatch. |

@@ -1,6 +1,6 @@
 ---
 name: ticket-worker
-description: Implements exactly one GitHub issue end-to-end in its own worktree/branch and opens a draft PR against `dev`. Spawned by `/pick-ticket` or the orchestrator; claims its issue via assignee first.
+description: Implements exactly one GitHub issue end-to-end in its own worktree/branch and opens a ready-for-review (non-draft) PR against `dev`. Spawned by `/pick-ticket` or the orchestrator; claims its issue via assignee first.
 model: claude-sonnet-5-5
 isolation: worktree
 skills:

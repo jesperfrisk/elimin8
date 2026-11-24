@@ -1,11 +1,11 @@
 ---
 name: ticket-worker
-description: Playbook for implementing one GitHub issue in Elimin8 (branch from dev, tests, draft PR into dev). Used by ticket-worker subagents; invoke manually as /ticket-worker <issue#> to work a single ticket yourself.
+description: Playbook for implementing one GitHub issue in Elimin8 (branch from dev, tests, PR into dev). Used by ticket-worker subagents; invoke manually as /ticket-worker <issue#> to work a single ticket yourself.
 ---
 
 # Ticket worker
 
-You implement **one issue** and deliver a **draft PR into `dev`**. Nothing else.
+You implement **one issue** and deliver a **ready-for-review PR into `dev`**. Nothing else.
 
 ## Hard rules
 
@@ -73,11 +73,11 @@ Target **<= ~150k tokens** for the whole ticket. To stay inside it:
    was already pushed and the rebase rewrote it, `git push --force-with-lease
    origin HEAD:<branch>` is allowed for your own feature branch only, with
    the user's approval.
-7. Open a **draft** PR: `gh pr create --draft --base dev --head <branch>`
-   using `.github/pull_request_template.md`; include `Closes #<n>`.
+7. Open a **ready-for-review (non-draft)** PR so the reviewer sees it:
+   `gh pr create --base dev --head <branch>` (no `--draft`) using `.github/pull_request_template.md`; include `Closes #<n>`.
 8. **Address feedback until merged.** Merging is done by the `pr-reviewer`
-   loop (`.claude/scripts/merge-to-dev.sh`), never by you. When CI is green and
-   the branch is rebased, mark the PR ready: `gh pr ready <pr>`. Then, on every
+   loop (`.claude/scripts/merge-to-dev.sh`), never by you. If the PR is somehow still a draft, run `gh pr ready <pr>` once
+   `make check` passes and the branch is rebased. On every
    later run (`/worker-loop` re-enters here for your one open PR), check
    `gh pr view <pr> --json comments,reviews,mergeable,statusCheckRollup`:
    - `pr-reviewer: CHANGES <sha>` comment, human review comments, red CI, or
