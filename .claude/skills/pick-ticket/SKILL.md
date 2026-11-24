@@ -36,6 +36,9 @@ file under "Owns files" must not run in parallel: if one of those is already
 
 - You own conflicts on your PR: rebase on `origin/dev` before ready-for-review
   and whenever another PR lands first (see `ticket-worker` step 6).
-- Agents never merge. A human squash-merges into `dev` once CI is green,
-  preferably someone other than the PR author. `dev` -> `main` is a human-only
-  release PR (`/orchestrate-tickets` section 5).
+- Workers never merge. The `pr-reviewer` skill reviews, comments and
+  squash-merges into `dev` through `.claude/scripts/merge-to-dev.sh` once CI is
+  green; you fix its comments (`ticket-worker` step 8). `dev` -> `main` is a
+  human-only release PR (`/orchestrate-tickets` section 5).
+- Running this in a loop? Use `/loop 10m /team-loop`, which also fixes your
+  PRs' feedback and reviews/merges others' before picking new work.

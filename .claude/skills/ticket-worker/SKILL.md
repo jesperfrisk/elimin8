@@ -75,7 +75,22 @@ Target **<= ~150k tokens** for the whole ticket. To stay inside it:
    the user's approval.
 7. Open a **draft** PR: `gh pr create --draft --base dev --head <branch>`
    using `.github/pull_request_template.md`; include `Closes #<n>`.
-8. Final report (this is all the orchestrator sees; keep it short):
+8. **Address feedback until merged.** Merging is done by the `pr-reviewer`
+   loop (`.claude/scripts/merge-to-dev.sh`), never by you. When CI is green and
+   the branch is rebased, mark the PR ready: `gh pr ready <pr>`. Then, on every
+   later run (`/team-loop` re-enters here for your open PRs), check
+   `gh pr view <pr> --json comments,reviews,mergeable,statusCheckRollup`:
+   - `pr-reviewer: CHANGES <sha>` comment, human review comments, red CI, or
+     conflicts -> fix on the same branch in small commits (rebase per step 6),
+     `make check`, push with an explicit `HEAD:<branch>`, then
+     `gh pr comment <pr>` summarising what you changed. A new head SHA
+     triggers a fresh review. Disagree with a finding? Reply with reasoning,
+     don't silently ignore it.
+   - `pr-reviewer: LGTM <current sha>` + green CI -> nothing to do; the
+     reviewer merges. Don't push again (it invalidates the LGTM).
+   - After 3 fix rounds without progress, label `needs-human` and stop.
+   - Once merged, the issue closes via `Closes #<n>`; delete nothing yourself.
+9. Final report (this is all the orchestrator sees; keep it short):
    - `DONE` | `NEEDS-SPLIT` | `NEEDS-INPUT` | `BLOCKED` | `TAKEN`
    - PR URL and branch
    - What `make check` / tests showed (say honestly what was not run)
