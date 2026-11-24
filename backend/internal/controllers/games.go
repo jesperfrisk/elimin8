@@ -29,18 +29,17 @@ func NewGameController(s *services.GameService) *GameController {
 	return &GameController{service: s, attempts: map[string]attemptWindow{}}
 }
 
+// Register wires every domain's routes. To add a domain, create
+// <domain>.go with a register<Domain>(mux) method and add one line here.
 func (c *GameController) Register(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/games", c.create)
-	mux.HandleFunc("POST /api/access", c.login)
-	mux.HandleFunc("GET /api/games/{id}", c.get)
-	mux.HandleFunc("POST /api/games/{id}/players", c.addPlayers)
-	mux.HandleFunc("POST /api/games/{id}/players/{player}/code", c.resetCode)
-	mux.HandleFunc("POST /api/games/{id}/start", c.transition)
-	mux.HandleFunc("POST /api/games/{id}/end", c.transition)
-	mux.HandleFunc("POST /api/games/{id}/missions", c.addMissions)
-	mux.HandleFunc("PATCH /api/games/{id}/missions/{mission}", c.setMissionEnabled)
-	mux.HandleFunc("POST /api/games/{id}/eliminations", c.reportElimination)
-	mux.HandleFunc("POST /api/games/{id}/eliminations/{claim}/response", c.respondElimination)
+	c.registerLifecycle(mux)
+	c.registerPlayers(mux)
+	c.registerMissions(mux)
+	c.registerEliminations(mux)
+	c.registerTeams(mux)
+	c.registerWithdrawals(mux)
+	c.registerTimer(mux)
+	c.registerResults(mux)
 }
 
 func gameJSON(w http.ResponseWriter, status int, v any) {
@@ -141,46 +140,6 @@ func (c *GameController) limited(w http.ResponseWriter, r *http.Request) bool {
 	gameJSON(w, 429, map[string]string{"error": "Too many attempts. Wait a minute and try again."})
 	return true
 }
-
-func (c *GameController) create(w http.ResponseWriter, r *http.Request) {
-	if c.limited(w, r) {
-		return
-	}
-	var in struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	}
-	if !decodeGame(w, r, &in) {
-		return
-	}
-	a, err := c.service.Create(r.Context(), in.Name, in.Description)
-	if err != nil {
-		gameError(w, err)
-		return
-	}
-	gameJSON(w, 201, a)
-}
-
-func (c *GameController) login(w http.ResponseWriter, r *http.Request) {
-	if c.limited(w, r) {
-		return
-	}
-	var in struct {
-		InvitationCode string `json:"invitationCode"`
-		Code           string `json:"code"`
-		Role           string `json:"role"`
-	}
-	if !decodeGame(w, r, &in) {
-		return
-	}
-	a, err := c.service.Login(r.Context(), in.InvitationCode, in.Code, in.Role)
-	if err != nil {
-		gameError(w, err)
-		return
-	}
-	gameJSON(w, 200, a)
-}
-
 func (c *GameController) authorized(w http.ResponseWriter, r *http.Request) (models.Access, *models.Game, bool) {
 	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	a, g, err := c.service.Authorize(r.Context(), token)
@@ -193,57 +152,4 @@ func (c *GameController) authorized(w http.ResponseWriter, r *http.Request) (mod
 		return a, nil, false
 	}
 	return a, g, true
-}
-
-func (c *GameController) get(w http.ResponseWriter, r *http.Request) {
-	a, g, ok := c.authorized(w, r)
-	if !ok {
-		return
-	}
-	gameJSON(w, 200, services.View(g, a))
-}
-
-func (c *GameController) addPlayers(w http.ResponseWriter, r *http.Request) {
-	a, _, ok := c.authorized(w, r)
-	if !ok {
-		return
-	}
-	var in struct {
-		Names []string `json:"names"`
-	}
-	if !decodeGame(w, r, &in) {
-		return
-	}
-	issued, err := c.service.AddPlayers(r.Context(), a, in.Names)
-	if err != nil {
-		gameError(w, err)
-		return
-	}
-	gameJSON(w, 201, map[string]any{"players": issued})
-}
-
-func (c *GameController) resetCode(w http.ResponseWriter, r *http.Request) {
-	a, _, ok := c.authorized(w, r)
-	if !ok {
-		return
-	}
-	issued, err := c.service.ResetCode(r.Context(), a, r.PathValue("player"))
-	if err != nil {
-		gameError(w, err)
-		return
-	}
-	gameJSON(w, 200, issued)
-}
-
-func (c *GameController) transition(w http.ResponseWriter, r *http.Request) {
-	a, _, ok := c.authorized(w, r)
-	if !ok {
-		return
-	}
-	action := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
-	if err := c.service.Transition(r.Context(), a, action); err != nil {
-		gameError(w, err)
-		return
-	}
-	gameJSON(w, 200, map[string]string{"status": "ok"})
 }

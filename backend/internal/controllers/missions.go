@@ -54,3 +54,8 @@ func (c *GameController) setMissionEnabled(w http.ResponseWriter, r *http.Reques
 	}
 	gameJSON(w, 200, map[string]string{"status": "ok"})
 }
+
+func (c *GameController) registerMissions(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/games/{id}/missions", c.addMissions)
+	mux.HandleFunc("PATCH /api/games/{id}/missions/{mission}", c.setMissionEnabled)
+}

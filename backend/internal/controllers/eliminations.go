@@ -46,3 +46,8 @@ func (c *GameController) respondElimination(w http.ResponseWriter, r *http.Reque
 	}
 	gameJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
+
+func (c *GameController) registerEliminations(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/games/{id}/eliminations", c.reportElimination)
+	mux.HandleFunc("POST /api/games/{id}/eliminations/{claim}/response", c.respondElimination)
+}

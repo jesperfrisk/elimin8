@@ -21,6 +21,24 @@ backend/
   README.md
 ```
 
+### Layout (per-domain files)
+
+Models, services and controllers are split by domain so feature work mostly owns its own files:
+
+| Domain | `models/` | `services/` | `controllers/` |
+| --- | --- | --- | --- |
+| Core game, access | `game.go` | `games.go` (errors, repository, `mutate`) | `games.go` (wiring, rate limiting, auth) |
+| Lifecycle (create, login, start/end) | | `lifecycle.go` | `lifecycle.go` |
+| Players, credentials | `player.go` | `players.go` | `players.go` |
+| Missions | `mission.go` | `missions.go` | `missions.go` |
+| Eliminations | `elimination.go` | `eliminations.go`, `victims.go` | `eliminations.go` |
+| API views | `views.go` | `views.go` | |
+| Teams, withdrawals, timer, results | `teams.go`, `withdrawals.go`, `timer.go`, `results.go` | same names | same names (route-less placeholders) |
+
+Phase 1 fields are reserved on `Game` (`Mode`, `Teams`, `Timer`, `EndReason`, `Result`) and `Player` (`TeamID`, `WithdrawnAt`, `ConfirmedKills`). They are `omitempty`, carry no JSON tags, and are not exposed in any view until their feature adds them.
+
+**Adding a domain or route:** put handlers in `controllers/<domain>.go` with a `register<Domain>(mux)` method that calls `mux.HandleFunc(...)`, then add one `c.register<Domain>(mux)` line to `GameController.Register` in `controllers/games.go` (the placeholder domains are already wired). Put rules in `services/<domain>.go` and types in `models/<domain>.go`.
+
 The API uses Go's standard `net/http` package and the official MongoDB Go driver v2. Controllers register game handlers on the application's mux; there is no separate routes package. Code-based credentials authorize all game access.
 
 ## Run with Docker
