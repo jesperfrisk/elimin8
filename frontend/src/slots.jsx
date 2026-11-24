@@ -1,5 +1,6 @@
 import React from "react";
 import { Withdrawal } from "./Withdrawal";
+import { Results } from "./Results";
 
 // Extension points for new game panels.
 //
@@ -27,7 +28,7 @@ export const lobbyPanels = [Timer, Teams];
 export const inGamePanels = [Timer, Teams, Withdrawal];
 
 // game.status === "ended"
-export const gameOverPanels = [];
+export const gameOverPanels = [Results];
 
 export function PanelSlot({ panels, ...props }) {
   return panels.map((Panel, i) => (
