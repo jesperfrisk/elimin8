@@ -11,7 +11,7 @@ rules and the [CHANGELOG](CHANGELOG.md) for what has shipped.
 - [x] Configure missions
 - [x] Randomly assign private missions, exhausting enabled entries before reuse
 - [x] Assign private victims in one circle without self-targets
-- [ ] Generate team-safe victim assignments
+- [x] Generate team-safe victim assignments
 - [x] Reveal private assignments when games start
 - [x] Implement mutual elimination confirmation
 - [x] Transfer victims and missions automatically
