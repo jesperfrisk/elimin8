@@ -41,9 +41,10 @@ func View(g *models.Game, a models.Access) models.GameView {
 		}
 		pv := models.PlayerView{ID: p.ID, Name: p.Name, JoinedAt: p.JoinedAt, Included: p.Included, EliminatedAt: p.EliminatedAt}
 		if g.Status != "lobby" && p.Included {
-			v.Participants = append(v.Participants, models.ParticipantView{ID: p.ID, Name: p.Name, EliminatedAt: p.EliminatedAt})
+			pv.Status = PlayerStatus(p)
+			v.Participants = append(v.Participants, models.ParticipantView{ID: p.ID, Name: p.Name, Status: pv.Status, EliminatedAt: p.EliminatedAt})
 		}
-		if g.Status != "lobby" && p.Included && p.EliminatedAt == nil {
+		if g.Status != "lobby" && stillPlaying(&p) {
 			pv.Mission = p.Mission
 			if victim, ok := identities[p.VictimID]; ok {
 				pv.Victim = &victim

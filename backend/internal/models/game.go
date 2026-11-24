@@ -27,6 +27,9 @@ type Game struct {
 	Timer     *Timer      `bson:"timer,omitempty"`
 	EndReason string      `bson:"endReason,omitempty"`
 	Result    *GameResult `bson:"result,omitempty"`
+
+	// Unconfirmed withdrawal requests (see withdrawals.go); never exposed in a view.
+	Withdrawals []Withdrawal `bson:"withdrawals,omitempty"`
 }
 
 type Access struct {

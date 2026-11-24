@@ -60,7 +60,7 @@ func assignable(g *models.Game, p *models.Player) bool {
 	if g.Status == "lobby" || g.StartedAt == nil {
 		return p.JoinedAt != nil
 	}
-	return p.Included && p.EliminatedAt == nil
+	return stillPlaying(p)
 }
 
 func shuffle[T any](items []T) {
