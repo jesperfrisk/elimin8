@@ -1,6 +1,6 @@
 # Elimin8 Backend
 
-The backend is a Go HTTP API backed by MongoDB, with an embedded Mochi MQTT broker for realtime updates. It currently manages games, organizer-owned rosters, private-code access, lobby missions, private mission and victim assignment, joining, starting, and ending. Teams, eliminations, timers, and results remain future work.
+The backend is a Go HTTP API backed by MongoDB, with an embedded Mochi MQTT broker for realtime updates. It manages games, organizer-owned rosters, private-code access, lobby missions, private assignments, mutually confirmed eliminations, assignment transfers, and last-player victory. Teams, withdrawals, timers, and scoring remain future work.
 
 ## Structure
 
@@ -80,6 +80,10 @@ Missions, victims, participant inclusion, and active status commit in the same r
 
 Organizers add up to 100 missions per request, each with up to 1,000 Unicode characters and no internal line breaks. There is no small total-mission cap; the existing game-document size limit applies. New entries are enabled. Disabling retains the entry so it can be re-enabled. All mission changes require organizer access and lobby status, and use the existing atomic revision checks and MQTT invalidations. Only organizer views include mission configuration. Existing game documents without missions are treated as empty.
 
+Elimination reports are embedded in the game with killer/victim IDs, creation/resolution timestamps, and `pending`, `accepted`, `declined`, or `cancelled` status. Only living participants in an active game can report their currently assigned target. The server checks the assignment again when accepting a report. Each killer can have one outgoing pending report, and each victim one incoming pending report. Only the named victim may respond. Accepting atomically marks the victim eliminated, transfers their mission and target to the killer, repairs the target circle, and cancels pending reports involving eliminated players. Other players retain their missions. The final survivor ends the game with `winnerId` and no remaining assignment. Declines leave assignments unchanged. Ending a game cancels pending reports. Duplicate or stale responses return HTTP 409.
+
+After starting, `participants` contains only IDs, names, and elimination timestamps as shared participant information. Private `eliminations` contains only reports involving the caller; organizers can read all reports. Eliminated players retain login access but no assignment or ability to report. MQTT invalidations carry no report details; authorized state fetches deliver the confirmation prompt, including after reconnects. Existing documents without elimination fields work without a migration.
+
 Startup creates a unique invitation-code index and the access-token TTL index. Game documents are created by API requests; no seed data or manual database migration is necessary.
 
 All game mutations take a per-game mutex from a bounded lock pool. Persistence uses an atomic `updateOne` filtered by game ID and previous revision. If another instance changes the game, the service reloads and rechecks the rules before retrying. Starting selects joined players and sets the active status in the same write, so a concurrent join either commits first and is included or is rejected after the start. MongoDB is the final concurrency authority.
@@ -100,7 +104,7 @@ See the [project README](../README.md) for the complete game rules and roadmap.
 
 ## Current Status
 
-Game lifecycle, organizer rosters, lobby mission configuration, private random mission and victim assignment, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented. Eliminations, withdrawals, and teams remain future work.
+Game lifecycle, organizer rosters, lobby missions, private assignments, mutual elimination confirmation, atomic transfers, last-player victory, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented. Withdrawals, teams, timers, and scoring remain future work.
 
 ## Game API
 
@@ -115,9 +119,11 @@ Game lifecycle, organizer rosters, lobby mission configuration, private random m
 | PATCH | `/api/games/{id}/missions/{mission}` | Organizer, lobby only: set `{ "enabled": false }` or `{ "enabled": true }` |
 | POST | `/api/games/{id}/start` | Organizer: require two joined players and an enabled mission, atomically assign missions and a victim circle, freeze participants, and activate the lobby |
 | POST | `/api/games/{id}/end` | Organizer: end a lobby or active game permanently |
+| POST | `/api/games/{id}/eliminations` | Living player, active game: report the assigned target with `{ "victimId": "..." }`; returns a pending claim |
+| POST | `/api/games/{id}/eliminations/{claim}/response` | Named victim: respond with `{ "accept": true }` or `{ "accept": false }` |
 | GET (upgrade) | `/api/mqtt` | Authenticated MQTT over WebSockets |
 
-Protected HTTP requests use `Authorization: Bearer <token>`. Tokens expire after 12 hours. Private codes are normalized to uppercase with spaces/hyphens ignored, and hashed with scrypt using the random game ID as salt. Player codes have eight unambiguous random characters; organizer management codes have 24. Code reset preserves joined status and the frozen participant roster while incrementing the credential version. Players see their own identity and aggregate counts; only organizers receive the named roster. No response exposes stored hashes.
+Protected HTTP requests use `Authorization: Bearer <token>`. Tokens expire after 12 hours. Private codes are normalized to uppercase with spaces/hyphens ignored, and hashed with scrypt using the random game ID as salt. Player codes have eight unambiguous random characters; organizer management codes have 24. Code reset preserves joined status and the frozen participant roster while incrementing the credential version. Players receive their own assignments and a safe participant list after starting; only organizers receive other players' assignments. No response exposes stored hashes.
 
 Anonymous creation/login attempts are limited per remote address and endpoint. Forwarding headers are not trusted, so clients behind Nginx share its limit of 30 attempts per minute for each endpoint. For larger deployments, configure a trusted-proxy-aware limiter before exposing the service publicly. Use HTTPS/WSS outside localhost and keep private codes out of logs and URLs.
 

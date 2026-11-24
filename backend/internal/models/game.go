@@ -17,6 +17,8 @@ type Game struct {
 	CreatedAt         time.Time      `bson:"createdAt"`
 	StartedAt         *time.Time     `bson:"startedAt,omitempty"`
 	EndedAt           *time.Time     `bson:"endedAt,omitempty"`
+	Eliminations      []Elimination  `bson:"eliminations"`
+	WinnerID          string         `bson:"winnerId,omitempty"`
 }
 
 // LobbyMission is a game-local assignment candidate. Its ID is only for lobby
@@ -36,6 +38,23 @@ type Player struct {
 	Included          bool       `bson:"included"`
 	Mission           string     `bson:"mission,omitempty"`
 	VictimID          string     `bson:"victimId,omitempty"`
+	EliminatedAt      *time.Time `bson:"eliminatedAt,omitempty"`
+}
+
+type Elimination struct {
+	ID         string     `bson:"id" json:"id"`
+	KillerID   string     `bson:"killerId" json:"killerId"`
+	VictimID   string     `bson:"victimId" json:"victimId"`
+	Status     string     `bson:"status" json:"status"`
+	CreatedAt  time.Time  `bson:"createdAt" json:"createdAt"`
+	ResolvedAt *time.Time `bson:"resolvedAt,omitempty" json:"resolvedAt,omitempty"`
+}
+
+// ParticipantView is safe to share with other players: no private assignments.
+type ParticipantView struct {
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	EliminatedAt *time.Time `json:"eliminatedAt,omitempty"`
 }
 
 type Access struct {
@@ -47,12 +66,13 @@ type Access struct {
 }
 
 type PlayerView struct {
-	ID       string      `json:"id"`
-	Name     string      `json:"name"`
-	JoinedAt *time.Time  `json:"joinedAt"`
-	Included bool        `json:"included"`
-	Mission  string      `json:"mission,omitempty"`
-	Victim   *VictimView `json:"victim,omitempty"`
+	ID           string      `json:"id"`
+	Name         string      `json:"name"`
+	JoinedAt     *time.Time  `json:"joinedAt"`
+	Included     bool        `json:"included"`
+	Mission      string      `json:"mission,omitempty"`
+	Victim       *VictimView `json:"victim,omitempty"`
+	EliminatedAt *time.Time  `json:"eliminatedAt,omitempty"`
 }
 
 // VictimView exposes identity only, never the victim's private assignments.
@@ -62,21 +82,24 @@ type VictimView struct {
 }
 
 type GameView struct {
-	ID               string          `json:"id"`
-	Name             string          `json:"name"`
-	Description      string          `json:"description"`
-	InvitationCode   string          `json:"invitationCode"`
-	Status           string          `json:"status"`
-	Revision         int64           `json:"revision"`
-	CreatedAt        time.Time       `json:"createdAt"`
-	StartedAt        *time.Time      `json:"startedAt"`
-	EndedAt          *time.Time      `json:"endedAt"`
-	JoinedCount      int             `json:"joinedCount"`
-	InvitedCount     int             `json:"invitedCount"`
-	ParticipantCount int             `json:"participantCount"`
-	Players          []PlayerView    `json:"players,omitempty"`
-	Me               *PlayerView     `json:"me,omitempty"`
-	Missions         *[]LobbyMission `json:"missions,omitempty"`
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Description      string            `json:"description"`
+	InvitationCode   string            `json:"invitationCode"`
+	Status           string            `json:"status"`
+	Revision         int64             `json:"revision"`
+	CreatedAt        time.Time         `json:"createdAt"`
+	StartedAt        *time.Time        `json:"startedAt"`
+	EndedAt          *time.Time        `json:"endedAt"`
+	JoinedCount      int               `json:"joinedCount"`
+	InvitedCount     int               `json:"invitedCount"`
+	ParticipantCount int               `json:"participantCount"`
+	Players          []PlayerView      `json:"players,omitempty"`
+	Me               *PlayerView       `json:"me,omitempty"`
+	Missions         *[]LobbyMission   `json:"missions,omitempty"`
+	Participants     []ParticipantView `json:"participants,omitempty"`
+	Eliminations     []Elimination     `json:"eliminations,omitempty"`
+	WinnerID         string            `json:"winnerId,omitempty"`
 }
 
 type Admission struct {

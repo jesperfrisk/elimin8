@@ -39,6 +39,8 @@ func (c *GameController) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/games/{id}/end", c.transition)
 	mux.HandleFunc("POST /api/games/{id}/missions", c.addMissions)
 	mux.HandleFunc("PATCH /api/games/{id}/missions/{mission}", c.setMissionEnabled)
+	mux.HandleFunc("POST /api/games/{id}/eliminations", c.reportElimination)
+	mux.HandleFunc("POST /api/games/{id}/eliminations/{claim}/response", c.respondElimination)
 }
 
 func gameJSON(w http.ResponseWriter, status int, v any) {
@@ -79,6 +81,9 @@ func gameError(w http.ResponseWriter, err error) {
 	case errors.Is(err, services.ErrConflict):
 		status = 409
 		message = "The game changed while you were working. Refresh the game and try again."
+	case errors.Is(err, services.ErrElimination), errors.Is(err, services.ErrPendingElimination):
+		status = 409
+		message = err.Error()
 	case errors.Is(err, services.ErrLobbyClosed):
 		status = 409
 		message = err.Error()

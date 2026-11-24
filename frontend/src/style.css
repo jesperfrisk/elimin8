@@ -737,3 +737,7 @@ footer span {
     width: 100%;
   }
 }
+/* Elimination requests. */
+.eliminations { margin-top: 1.5rem; }
+.confirmation-request { border: 2px solid var(--accent, #b8ef54); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; }
+.elimination-history { margin-top: 1.5rem; overflow-wrap: anywhere; }

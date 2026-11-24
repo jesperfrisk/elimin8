@@ -41,16 +41,18 @@ make down
 
 See [backend setup](backend/README.md) and [frontend setup](frontend/README.md) for architecture, configuration, and development commands.
 
-## Available Now: Games, Invitations, and Lobby Missions
+## Available Now: Games, Missions, and Confirmed Eliminations
 
 1. Open **Organize** and create a game with a name and optional description. Save the private organizer management code shown once after creation.
 2. Add player names to the lobby, one per line. Each roster entry receives its own eight-character private code. Copy each invitation and share it with that player only.
 3. Players open **Play** and enter the shared game invitation code plus their private player code. The organizer sees each player change from **Invited** to **Joined** immediately.
 4. Add missions to the lobby, one per line. Paste as many as you need; each entry starts enabled. Disable missions to leave them out without deleting them, and re-enable them whenever you like before starting. The mission list belongs only to this game and remains hidden from players. Repeated lines create separate entries.
 5. Start the game when ready. Only players who joined before the start are included, and mission configuration locks. Closing a browser does not undo a join. Included players can return using their codes; unjoined invitees cannot join after the start.
-6. End a lobby or active game using the organizer controls. Ended games remain available to their organizer and previously admitted players.
+6. During an active game, confirm an elimination report for your assigned target directly. Their screen receives a live MQTT confirmation request naming you. They can accept or decline; assignments change only on acceptance. Pending requests survive reconnects. Only the two involved players and the organizer can see a report.
+7. Acceptance marks the victim eliminated and transfers their target and mission to the killer. Only your currently assigned target can be reported or eliminated; accepting the report preserves the target circle. Eliminated players can still return to the game but cannot report kills. Declined reports leave assignments unchanged, and the killer can submit a new report. One outgoing report per killer and one incoming report per victim can be pending at a time. Reports involving a newly eliminated player are cancelled.
+8. The final elimination ends the game and announces the last player standing. The organizer can also end a lobby or active game, cancelling pending reports. Ended games remain available to their organizer and previously admitted players.
 
-Starting requires at least two joined players and one enabled mission. Each participant receives a private, randomly assigned mission and victim. Victims form one shuffled circle: everyone has one victim and one hunter, and nobody targets themselves. Every enabled mission entry is used once before any entry is reused; each new round is shuffled again. Disabled entries and unjoined invitees are excluded. Assignments persist when players reconnect. Teams, eliminations, and winners remain future work. The rules below describe the planned complete game.
+Starting requires at least two joined players and one enabled mission. Each participant receives a private, randomly assigned mission and victim. Victims form one shuffled circle: everyone has one victim and one hunter, and nobody targets themselves. Every enabled mission entry is used once before any entry is reused; each new round is shuffled again. Disabled entries and unjoined invitees are excluded. Assignments persist when players reconnect. Shared participant information exposes only names, IDs, and elimination status; other players' assignments stay private. Teams, withdrawals, timers, and organizer dispute resolution remain future work. The rules below describe the planned complete game.
 
 Player and organizer codes authenticate access across devices. Private codes are shown only when generated; an organizer can reset a lost player code, invalidating that player's previous code and access credentials. Browser tabs remember temporary access for up to 12 hours, without saving private codes. Keep the organizer management code: account recovery is not implemented.
 
@@ -343,9 +345,9 @@ All participants can see the public Kill Board, but it must not reveal any secre
 - [x] Randomly assign private missions, exhausting enabled entries before reuse
 - [x] Assign private victims in one circle without self-targets
 - [ ] Generate team-safe victim assignments
-- [ ] Reveal private assignments when games start
-- [ ] Implement mutual elimination confirmation
-- [ ] Transfer victims and missions automatically
+- [x] Reveal private assignments when games start
+- [x] Implement mutual elimination confirmation
+- [x] Transfer victims and missions automatically
 - [ ] Support confirmed player withdrawals
 - [ ] Create privacy-safe Kill Board
 - [ ] Track kills privately

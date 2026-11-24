@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { request, readAccess, rememberAccess, forgetAccess } from "./api";
 import { useGame } from "./useGame";
 import { LobbyMissions } from "./LobbyMissions";
+import { Eliminations } from "./Eliminations";
 import { gameActionError } from "./gameActionError";
 import "./style.css";
 
@@ -622,7 +623,7 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
                                   ? "Joined"
                                   : "Invited"
                                 : p.included
-                                  ? "Participant"
+                                  ? p.eliminatedAt ? "Eliminated" : "Active"
                                   : "Not included"}
                             </span>
                           </td>
@@ -778,6 +779,8 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
           <h2>
             {lobby
               ? "Your place in the lobby is confirmed."
+              : game.me?.eliminatedAt
+                ? "You have been eliminated."
               : active
                 ? "The game is on."
                 : "This game has ended."}
@@ -785,6 +788,8 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
           <p>
             {lobby
               ? "Your organizer will start the game when everyone is ready. You can close this page and return with your codes—your place stays joined."
+              : game.me?.eliminatedAt
+                ? "Your elimination is confirmed. You can return here to see the game outcome."
               : active
                 ? "The game is underway. Keep your assignments secret."
                 : "Thanks for being part of it. You can return to your games or join another lobby."}
@@ -811,6 +816,7 @@ function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
           )}
         </section>
       )}
+      {!organizer && <Eliminations game={game} access={access} action={action} busy={busy} />}
     </>
   );
 }
