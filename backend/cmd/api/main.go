@@ -32,6 +32,10 @@ func run() error {
 	if err := cfg.ValidatePhotoStorage(); err != nil {
 		return errors.New("photo storage configuration is invalid; check PHOTO_STORAGE settings")
 	}
+	photoRetention, err := config.LoadPhotoRetention()
+	if err != nil {
+		return err
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -67,6 +71,9 @@ func run() error {
 	gameRepo := mongodb.NewGameRepository(db)
 	indexCtx, indexCancel := context.WithTimeout(ctx, 10*time.Second)
 	err = gameRepo.EnsureIndexes(indexCtx)
+	if err == nil && photoStore != nil {
+		err = gameRepo.EnsurePhotoRetentionIndex(indexCtx)
+	}
 	indexCancel()
 	if err != nil {
 		return errors.New("game database indexes could not be initialized")
@@ -84,7 +91,10 @@ func run() error {
 	go gameService.RunTimerSweep(outboxCtx, 5*time.Second)
 	controllers.NewGameController(gameService).Register(mux)
 	if photoStore != nil {
-		controllers.NewPhotoController(gameService, services.NewPhotoService(gameService, photoStore)).Register(mux)
+		photos := services.NewPhotoService(gameService, photoStore)
+		photos.Retention = photoRetention
+		controllers.NewPhotoController(gameService, photos).Register(mux)
+		go services.NewPhotoRetentionService(gameService, gameRepo, photoStore, photoRetention).Run(outboxCtx, time.Minute)
 	}
 	mux.Handle("GET /api/mqtt", broker)
 
