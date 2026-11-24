@@ -7,7 +7,7 @@ rules and the [CHANGELOG](CHANGELOG.md) for what has shipped.
 
 - [x] Create games
 - [x] Join games using invitation codes
-- [ ] Configure teams manually or randomly
+- [x] Configure teams manually or randomly
 - [x] Configure missions
 - [x] Randomly assign private missions, exhausting enabled entries before reuse
 - [x] Assign private victims in one circle without self-targets

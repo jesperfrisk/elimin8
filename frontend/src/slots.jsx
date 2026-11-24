@@ -18,11 +18,12 @@ import React from "react";
 
 // game.status === "lobby"
 import { Timer } from "./Timer";
+import { Teams } from "./Teams";
 
-export const lobbyPanels = [Timer];
+export const lobbyPanels = [Timer, Teams];
 
 // game.status === "active"
-export const inGamePanels = [Timer];
+export const inGamePanels = [Timer, Teams];
 
 // game.status === "ended"
 export const gameOverPanels = [];
