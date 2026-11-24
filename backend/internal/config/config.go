@@ -21,6 +21,7 @@ func Load() Config {
 		MongoDBDatabase: envOrDefault("MONGODB_DATABASE", "elimin8"),
 		PhotoStorage: storage.S3Config{
 			Endpoint:  os.Getenv("PHOTO_STORAGE_ENDPOINT"),
+			Provider:  envOrDefault("PHOTO_STORAGE_PROVIDER", "s3"),
 			Region:    envOrDefault("PHOTO_STORAGE_REGION", "us-east-1"),
 			Bucket:    envOrDefault("PHOTO_STORAGE_BUCKET", "elimin8-photos"),
 			AccessKey: os.Getenv("PHOTO_STORAGE_ACCESS_KEY"),

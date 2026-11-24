@@ -21,6 +21,8 @@ import (
 
 // S3Config uses explicit credentials only; no ambient AWS account is consulted.
 type S3Config struct {
+	// Provider must explicitly be rustfs to accept its synthetic owner ACL.
+	Provider  string
 	Endpoint  string
 	Region    string
 	Bucket    string
@@ -35,7 +37,7 @@ func (c S3Config) Validate() error {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
 		return ErrInvalid
 	}
-	if !bucketName.MatchString(c.Bucket) || strings.Contains(c.Bucket, "..") || c.Region == "" || c.AccessKey == "" || c.SecretKey == "" {
+	if (c.Provider != "" && c.Provider != "s3" && c.Provider != "rustfs") || !bucketName.MatchString(c.Bucket) || strings.Contains(c.Bucket, "..") || c.Region == "" || c.AccessKey == "" || c.SecretKey == "" {
 		return ErrInvalid
 	}
 	return nil
@@ -49,7 +51,7 @@ type S3 struct {
 var _ Store = (*S3)(nil)
 
 // NewS3 initializes a private bucket and rejects preexisting public policies or
-// ACL grants. It never changes permissions on a preexisting bucket.
+// ACL grants. It leaves policies/ACLs intact and enforces public-access blocking.
 func NewS3(ctx context.Context, cfg S3Config) (*S3, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -67,7 +69,7 @@ func NewS3(ctx context.Context, cfg S3Config) (*S3, error) {
 		o.RetryMaxAttempts = 3
 	})
 	s := &S3{client: client, bucket: cfg.Bucket}
-	if err := s.ensurePrivate(ctx, cfg.Region); err != nil {
+	if err := s.ensurePrivate(ctx, cfg.Region, cfg.Provider); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -86,7 +88,7 @@ func hasCode(err error, codes ...string) bool {
 	return false
 }
 
-func (s *S3) ensurePrivate(ctx context.Context, region string) error {
+func (s *S3) ensurePrivate(ctx context.Context, region, provider string) error {
 	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(s.bucket)})
 	if hasCode(err, "NotFound", "NoSuchBucket", "404") {
 		input := &s3.CreateBucketInput{Bucket: aws.String(s.bucket)}
@@ -107,21 +109,49 @@ func (s *S3) ensurePrivate(ctx context.Context, region string) error {
 		return ErrUnavailable
 	}
 	for _, grant := range acl.Grants {
-		if grant.Grantee == nil || grant.Grantee.Type != types.TypeCanonicalUser || aws.ToString(grant.Grantee.ID) != aws.ToString(acl.Owner.ID) {
+		if grant.Grantee == nil || grant.Grantee.Type != types.TypeCanonicalUser || aws.ToString(grant.Grantee.URI) != "" || aws.ToString(grant.Grantee.EmailAddress) != "" {
+			return errors.New("photo storage bucket must be private")
+		}
+		ownerGrant := aws.ToString(grant.Grantee.ID) == aws.ToString(acl.Owner.ID)
+		// RustFS deliberately does not implement ACL authorization. Its owner-only
+		// response is one synthetic CanonicalUser FULL_CONTROL grant without ID.
+		// This exception is explicit and still requires public-access blocking.
+		rustfsOwner := provider == "rustfs" && len(acl.Grants) == 1 && aws.ToString(grant.Grantee.ID) == "" && grant.Permission == types.PermissionFullControl && aws.ToString(grant.Grantee.DisplayName) == ""
+		if !ownerGrant && !rustfsOwner {
 			return errors.New("photo storage bucket must be private")
 		}
 	}
 	policy, err := s.client.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{Bucket: aws.String(s.bucket)})
 	if hasCode(err, "NoSuchBucketPolicy") {
-		return nil
+		err = nil
 	}
 	if err != nil {
 		return ErrUnavailable
 	}
 	// Dedicated photo buckets need no policy. Reject even a seemingly private
 	// policy rather than attempting to evaluate provider-specific policy logic.
-	if strings.TrimSpace(aws.ToString(policy.Policy)) != "" {
+	if policy != nil && strings.TrimSpace(aws.ToString(policy.Policy)) != "" {
 		return errors.New("photo storage bucket must have no bucket policy")
+	}
+	// Narrowing a confirmed private dedicated bucket also prevents accidentally
+	// public object ACLs or future public policies. Never accept unsupported APIs.
+	_, err = s.client.PutPublicAccessBlock(ctx, &s3.PutPublicAccessBlockInput{
+		Bucket: aws.String(s.bucket),
+		PublicAccessBlockConfiguration: &types.PublicAccessBlockConfiguration{
+			BlockPublicAcls: aws.Bool(true), IgnorePublicAcls: aws.Bool(true),
+			BlockPublicPolicy: aws.Bool(true), RestrictPublicBuckets: aws.Bool(true),
+		},
+	})
+	if err != nil {
+		return ErrUnavailable
+	}
+	blocked, err := s.client.GetPublicAccessBlock(ctx, &s3.GetPublicAccessBlockInput{Bucket: aws.String(s.bucket)})
+	if err != nil || blocked.PublicAccessBlockConfiguration == nil {
+		return ErrUnavailable
+	}
+	b := blocked.PublicAccessBlockConfiguration
+	if !aws.ToBool(b.BlockPublicAcls) || !aws.ToBool(b.IgnorePublicAcls) || !aws.ToBool(b.BlockPublicPolicy) || !aws.ToBool(b.RestrictPublicBuckets) {
+		return errors.New("photo storage public access must be blocked")
 	}
 	return nil
 }
