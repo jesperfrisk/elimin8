@@ -100,6 +100,8 @@ Organizers add up to 100 missions per request, each with up to 1,000 Unicode cha
 
 Elimination reports are embedded in the game with killer/victim IDs, creation/resolution timestamps, and `pending`, `accepted`, `declined`, or `cancelled` status. Only living participants in an active game can report their currently assigned target. The server checks the assignment again when accepting a report. Each killer can have one outgoing pending report, and each victim one incoming pending report. Only the named victim may respond. Accepting atomically marks the victim eliminated, transfers their mission and target to the killer, repairs the target circle, and cancels pending reports involving eliminated players. Other players retain their missions. The final survivor ends the game with `winnerId` and no remaining assignment. Declines leave assignments unchanged. Ending a game cancels pending reports. Duplicate or stale responses return HTTP 409.
 
+In team mode, starting requires every joined player on a team and at least two teams with players (409 otherwise). The organizer's game view gains `mode` and `teams`; a player's `me.team` holds only their own team name and teammates. Participant and other-player views carry no team data. Team-safe victim assignment is a later ticket.
+
 After starting, `participants` contains only IDs, names, and elimination timestamps as shared participant information. Private `eliminations` contains only reports involving the caller; organizers can read all reports. Eliminated players retain login access but no assignment or ability to report. MQTT invalidations carry no report details; authorized state fetches deliver the confirmation prompt, including after reconnects. Existing documents without elimination fields work without a migration.
 
 Startup creates a unique invitation-code index and the access-token TTL index. Game documents are created by API requests; no seed data or manual database migration is necessary.
@@ -137,6 +139,9 @@ Game lifecycle, organizer rosters, lobby missions, private assignments, mutual e
 | PATCH | `/api/games/{id}/missions/{mission}` | Organizer, lobby only: set `{ "enabled": false }` or `{ "enabled": true }` |
 | POST | `/api/games/{id}/start` | Organizer: require two joined players and an enabled mission, atomically assign missions and a victim circle, freeze participants, and activate the lobby |
 | POST | `/api/games/{id}/end` | Organizer: end a lobby or active game permanently |
+| PATCH | `/api/games/{id}/settings` | Organizer, lobby only: `{ "mode": "individual" \| "team" }` |
+| PUT | `/api/games/{id}/teams` | Organizer, lobby, team mode: full replace with `{ "teams": [ { "id"?, "name", "playerIds": [] } ] }`; returns `{ "teams" }` |
+| POST | `/api/games/{id}/teams/randomize` | Organizer, lobby, team mode: `{ "teamCount": n }` (2 to joined players) deals joined players into balanced teams and persists them |
 | POST | `/api/games/{id}/eliminations` | Living player, active game: report the assigned target with `{ "victimId": "..." }`; returns a pending claim |
 | POST | `/api/games/{id}/eliminations/{claim}/response` | Named victim: respond with `{ "accept": true }` or `{ "accept": false }` |
 | GET (upgrade) | `/api/mqtt` | Authenticated MQTT over WebSockets |

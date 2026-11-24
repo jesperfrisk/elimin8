@@ -167,6 +167,11 @@ func (s *GameService) Transition(ctx context.Context, a models.Access, action st
 			if g.Status != "lobby" {
 				return ErrAlreadyStarted
 			}
+			if g.Mode == models.ModeTeam {
+				if err := validateTeamStart(g); err != nil {
+					return err
+				}
+			}
 			if err := assignVictims(g); err != nil {
 				return err
 			}

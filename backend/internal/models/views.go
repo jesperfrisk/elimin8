@@ -17,6 +17,9 @@ type PlayerView struct {
 	Mission      string      `json:"mission,omitempty"`
 	Victim       *VictimView `json:"victim,omitempty"`
 	EliminatedAt *time.Time  `json:"eliminatedAt,omitempty"`
+
+	// Only ever set on the player's own "me" view.
+	Team *TeamView `json:"team,omitempty"`
 }
 
 // VictimView exposes identity only, never the victim's private assignments.
@@ -44,6 +47,10 @@ type GameView struct {
 	Participants     []ParticipantView `json:"participants,omitempty"`
 	Eliminations     []Elimination     `json:"eliminations,omitempty"`
 	WinnerID         string            `json:"winnerId,omitempty"`
+
+	// Organizer only. Players and participants never receive team setup.
+	Mode  string          `json:"mode,omitempty"`
+	Teams []TeamSetupView `json:"teams,omitempty"`
 }
 
 type Admission struct {

@@ -11,6 +11,15 @@ func View(g *models.Game, a models.Access) models.GameView {
 		v.Missions = &missions
 	}
 	v.WinnerID = g.WinnerID
+	if a.PlayerID == "" {
+		v.Mode = string(models.ModeIndividual)
+		if g.Mode != "" {
+			v.Mode = string(g.Mode)
+		}
+		if g.Mode == models.ModeTeam {
+			v.Teams = setupViews(g)
+		}
+	}
 	for _, claim := range g.Eliminations {
 		if a.PlayerID == "" || claim.KillerID == a.PlayerID || claim.VictimID == a.PlayerID {
 			v.Eliminations = append(v.Eliminations, claim)
@@ -45,6 +54,9 @@ func View(g *models.Game, a models.Access) models.GameView {
 		if a.PlayerID == p.ID {
 			v.Me = &pv
 		}
+	}
+	if v.Me != nil {
+		v.Me.Team = teamViewFor(g, a.PlayerID)
 	}
 	return v
 }
