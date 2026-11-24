@@ -95,7 +95,11 @@ func transferElimination(g *models.Game, killer, victim *models.Player, now time
 	if remaining == 1 {
 		killer.VictimID, killer.Mission = "", ""
 		g.Status, g.EndedAt, g.WinnerID = "ended", &now, killer.ID
+		return
 	}
+	// Team mode: never leave a hunter targeting a teammate. When no safe circle
+	// exists the transfer stands and ValidAssignmentExists reports it (#19).
+	_ = repairTeamCircle(g)
 }
 
 // Claims survive reconnects but cannot be acted on once a participant is out.
