@@ -14,6 +14,8 @@ export function PlayerView({ game, access, action, busy }) {
         <h2>
           {lobby
             ? "Your place in the lobby is confirmed."
+            : game.me?.status === "withdrawn"
+              ? "You have withdrawn."
             : game.me?.eliminatedAt
               ? "You have been eliminated."
             : active
@@ -23,6 +25,8 @@ export function PlayerView({ game, access, action, busy }) {
         <p>
           {lobby
             ? "Your organizer will start the game when everyone is ready. You can close this page and return with your codes—your place stays joined."
+            : game.me?.status === "withdrawn"
+              ? "Your withdrawal is confirmed and your hunter has taken over your victim and mission. You can return here to see the game outcome."
             : game.me?.eliminatedAt
               ? "Your elimination is confirmed. You can return here to see the game outcome."
             : active
