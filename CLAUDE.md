@@ -87,6 +87,12 @@ lock. Any number of each role may run concurrently.
   **Sonnet 5.5**, own worktree) following `.claude/skills/ticket-worker/`.
   Each ticket is sized for **~150k tokens**; a worker that can't fit reports
   `NEEDS-SPLIT` instead of grinding on.
+- **The human decides how, the agent recommends.** Before writing code a
+  worker settles the open design decisions with the person it works with
+  (`ticket-worker` step 2a: `AskUserQuestion` with a recommended option first,
+  or the `grill-me` skill for tangled tickets) and records them in the PR's
+  Decisions section. Unattended runs take the recommended option and mark it
+  `default, unconfirmed` so review can overrule it.
 - Don't run parallel tickets that touch the same files (e.g. `models/game.go`,
   `main.jsx`, READMEs); the orchestrator serializes those.
 
