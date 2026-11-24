@@ -18,14 +18,16 @@ import (
 )
 
 var (
-	ErrNotFound       = errors.New("game not found")
-	ErrConflict       = errors.New("game changed; please try again")
-	ErrUnauthorized   = errors.New("invalid or expired credentials")
-	ErrForbidden      = errors.New("organizer access required")
-	ErrLobbyClosed    = errors.New("this game is no longer accepting players")
-	ErrInvalid        = errors.New("invalid input")
-	ErrAlreadyStarted = fmt.Errorf("game has already started: %w", ErrConflict)
-	ErrGameEnded      = fmt.Errorf("game has ended: %w", ErrConflict)
+	ErrNotFound           = errors.New("game not found")
+	ErrConflict           = errors.New("game changed; please try again")
+	ErrUnauthorized       = errors.New("invalid or expired credentials")
+	ErrForbidden          = errors.New("organizer access required")
+	ErrLobbyClosed        = errors.New("this game is no longer accepting players")
+	ErrInvalid            = errors.New("invalid input")
+	ErrAlreadyStarted     = fmt.Errorf("game has already started: %w", ErrConflict)
+	ErrGameEnded          = fmt.Errorf("game has ended: %w", ErrConflict)
+	ErrElimination        = errors.New("this elimination is no longer available; refresh the game")
+	ErrPendingElimination = errors.New("a confirmation is already pending for this killer or victim")
 )
 
 type GameRepository interface {
@@ -245,6 +247,12 @@ func View(g *models.Game, a models.Access) models.GameView {
 		missions := append([]models.LobbyMission{}, g.Missions...)
 		v.Missions = &missions
 	}
+	v.WinnerID = g.WinnerID
+	for _, claim := range g.Eliminations {
+		if a.PlayerID == "" || claim.KillerID == a.PlayerID || claim.VictimID == a.PlayerID {
+			v.Eliminations = append(v.Eliminations, claim)
+		}
+	}
 	identities := make(map[string]models.VictimView, len(g.Players))
 	for _, p := range g.Players {
 		if p.Included {
@@ -258,8 +266,11 @@ func View(g *models.Game, a models.Access) models.GameView {
 		if p.Included {
 			v.ParticipantCount++
 		}
-		pv := models.PlayerView{ID: p.ID, Name: p.Name, JoinedAt: p.JoinedAt, Included: p.Included}
+		pv := models.PlayerView{ID: p.ID, Name: p.Name, JoinedAt: p.JoinedAt, Included: p.Included, EliminatedAt: p.EliminatedAt}
 		if g.Status != "lobby" && p.Included {
+			v.Participants = append(v.Participants, models.ParticipantView{ID: p.ID, Name: p.Name, EliminatedAt: p.EliminatedAt})
+		}
+		if g.Status != "lobby" && p.Included && p.EliminatedAt == nil {
 			pv.Mission = p.Mission
 			if victim, ok := identities[p.VictimID]; ok {
 				pv.Victim = &victim
@@ -419,6 +430,7 @@ func (s *GameService) Transition(ctx context.Context, a models.Access, action st
 			}
 			g.Status = "ended"
 			g.EndedAt = &now
+			cancelEliminations(g, now)
 		default:
 			return ErrInvalid
 		}
