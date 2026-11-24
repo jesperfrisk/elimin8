@@ -35,13 +35,15 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	var photoStore storage.Store
 	if cfg.PhotoStorage.Endpoint != "" {
 		storageCtx, storageCancel := context.WithTimeout(ctx, 15*time.Second)
-		_, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
+		store, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
 		storageCancel()
 		if err != nil {
 			return errors.New("private photo storage could not be initialized; check PHOTO_STORAGE settings and storage availability")
 		}
+		photoStore = store
 	}
 
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -81,6 +83,9 @@ func run() error {
 	go broker.RunOutbox(outboxCtx, gameRepo)
 	go gameService.RunTimerSweep(outboxCtx, 5*time.Second)
 	controllers.NewGameController(gameService).Register(mux)
+	if photoStore != nil {
+		controllers.NewPhotoController(gameService, services.NewPhotoService(gameService, photoStore)).Register(mux)
+	}
 	mux.Handle("GET /api/mqtt", broker)
 
 	server := &http.Server{
