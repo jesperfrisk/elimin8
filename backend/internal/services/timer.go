@@ -24,11 +24,6 @@ func (s *GameService) now() time.Time {
 	return time.Now().UTC()
 }
 
-// OnTimerExpired is the seam for the results ticket. It runs inside the
-// expiry mutation, exactly once per game, after the game has been moved to
-// "ended" with EndReason "timer". It is a no-op until results land.
-func (s *GameService) OnTimerExpired(g *models.Game) {}
-
 // SetTimer sets (minutes != nil) or clears (minutes == nil) the time limit.
 // Organizer only and only while the game is in the lobby.
 func (s *GameService) SetTimer(ctx context.Context, a models.Access, minutes *int) error {

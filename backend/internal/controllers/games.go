@@ -62,7 +62,7 @@ func gameError(w http.ResponseWriter, err error) {
 	case errors.Is(err, services.ErrForbidden):
 		status = 403
 		message = err.Error()
-	case errors.Is(err, services.ErrNotFound):
+	case errors.Is(err, services.ErrNotFound), errors.Is(err, services.ErrNoResult):
 		status = 404
 		message = err.Error()
 	case errors.Is(err, services.ErrTooFewPlayers):
@@ -80,7 +80,7 @@ func gameError(w http.ResponseWriter, err error) {
 	case errors.Is(err, services.ErrConflict):
 		status = 409
 		message = "The game changed while you were working. Refresh the game and try again."
-	case errors.Is(err, services.ErrElimination), errors.Is(err, services.ErrPendingElimination), errors.Is(err, services.ErrWithdrawal):
+	case errors.Is(err, services.ErrElimination), errors.Is(err, services.ErrPendingElimination), errors.Is(err, services.ErrWithdrawal), errors.Is(err, services.ErrResultNotReady):
 		status = 409
 		message = err.Error()
 	case errors.Is(err, services.ErrTeamSetup), errors.Is(err, services.ErrNoValidAssignment):
