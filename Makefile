@@ -1,6 +1,9 @@
 .PHONY: up down logs ps build clean \
-	backend-run backend-test backend-vet \
-	frontend-dev frontend-build frontend-test
+	backend-run backend-test backend-vet backend-fmt-check \
+	frontend-dev frontend-build frontend-test check
+
+## Fast pre-push gate (same checks as CI; needs no running services)
+check: backend-fmt-check backend-vet backend-test frontend-build
 
 ## Docker Compose stack (backend + frontend + mongodb)
 up:
@@ -31,6 +34,9 @@ backend-test:
 
 backend-vet:
 	cd backend && go vet ./...
+
+backend-fmt-check:
+	@cd backend && test -z "$$(gofmt -l .)" || { echo "gofmt needed:"; gofmt -l .; exit 1; }
 
 ## Frontend (native, requires Node 22.12+; needs backend running on :8080)
 frontend-dev:

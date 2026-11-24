@@ -336,30 +336,7 @@ All participants can see the public Kill Board, but it must not reveal any secre
 
 ## 🗺️ Roadmap
 
-### Phase 1: MVP
-
-- [x] Create games
-- [x] Join games using invitation codes
-- [ ] Configure teams manually or randomly
-- [x] Configure missions
-- [x] Randomly assign private missions, exhausting enabled entries before reuse
-- [x] Assign private victims in one circle without self-targets
-- [ ] Generate team-safe victim assignments
-- [x] Reveal private assignments when games start
-- [x] Implement mutual elimination confirmation
-- [x] Transfer victims and missions automatically
-- [ ] Support confirmed player withdrawals
-- [ ] Create privacy-safe Kill Board
-- [ ] Track kills privately
-- [ ] Support optional game timers
-- [ ] Detect individual and team winners
-- [ ] Calculate game results
-
-### Phase 2: Improved Experience
-
-- [ ] Live game dashboard
-- [ ] Advanced post-game statistics
-- [ ] QR-code invitations
+Planned and completed work is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## 🤝 Contributing
 

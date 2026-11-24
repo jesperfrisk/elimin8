@@ -100,7 +100,7 @@ Connection settings come from `MONGODB_URI` and `MONGODB_DATABASE`. Real credent
 
 The server is authoritative for assignments, permissions, timers, and scores. Public responses must never expose secret assignments, missions, team memberships, killer identities, or in-game kill counts. Private player responses expose only that player's permitted information; organizer access must be explicitly authorized.
 
-See the [project README](../README.md) for the complete game rules and roadmap.
+See the [project README](../README.md) for the complete game rules and the [roadmap](../ROADMAP.md).
 
 ## Current Status
 
