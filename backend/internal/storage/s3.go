@@ -220,6 +220,11 @@ func (s *S3) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+const maxListedObjects = 100000
+const maxListPages = 1000
+
+// List returns a bounded batch. Deleting callers revisit the prefix to make
+// progress through arbitrarily large games without accumulating every key.
 func (s *S3) List(ctx context.Context, prefix string) ([]Object, error) {
 	if prefix != "" && !validKey(strings.TrimSuffix(prefix, "/")) {
 		return nil, ErrInvalid
@@ -230,19 +235,18 @@ func (s *S3) List(ctx context.Context, prefix string) ([]Object, error) {
 	pageCount := 0
 	for pages.HasMorePages() {
 		pageCount++
-		if pageCount > 1000 {
-			return nil, ErrUnavailable
-		}
 		page, err := pages.NextPage(ctx)
 		if err != nil {
 			return nil, ErrUnavailable
 		}
 		for _, object := range page.Contents {
 			key := aws.ToString(object.Key)
-			if !validKey(key) || !strings.HasPrefix(key, prefix) || object.LastModified == nil || len(objects) >= 100000 {
+			if !validKey(key) || !strings.HasPrefix(key, prefix) || object.LastModified == nil {
 				return nil, ErrInvalid
 			}
-			objects = append(objects, Object{Key: key, LastModified: *object.LastModified})
+			if len(objects) < maxListedObjects {
+				objects = append(objects, Object{Key: key, LastModified: *object.LastModified})
+			}
 		}
 		if aws.ToBool(page.IsTruncated) {
 			token := aws.ToString(page.NextContinuationToken)
@@ -250,6 +254,14 @@ func (s *S3) List(ctx context.Context, prefix string) ([]Object, error) {
 				return nil, ErrUnavailable
 			}
 			seenTokens[token] = true
+		}
+		if len(objects) >= maxListedObjects || pageCount >= maxListPages {
+			// An empty, still-truncated listing that exhausts the page bound is
+			// broken. Never call it complete or allow an unbounded request loop.
+			if len(objects) == 0 && pages.HasMorePages() {
+				return nil, ErrUnavailable
+			}
+			return objects, nil
 		}
 	}
 	return objects, nil
