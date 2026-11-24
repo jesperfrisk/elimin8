@@ -16,7 +16,7 @@ rules and the [CHANGELOG](CHANGELOG.md) for what has shipped.
 - [x] Implement mutual elimination confirmation
 - [x] Transfer victims and missions automatically
 - [ ] Support confirmed player withdrawals
-- [ ] Create privacy-safe Kill Board
+- [x] Create privacy-safe Kill Board
 - [ ] Track kills privately
 - [x] Support optional game timers
 - [ ] Detect individual and team winners

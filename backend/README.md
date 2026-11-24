@@ -34,6 +34,7 @@ Models, services and controllers are split by domain so feature work mostly owns
 | Eliminations | `elimination.go` | `eliminations.go`, `victims.go` | `eliminations.go` |
 | API views | `views.go` | `views.go` | |
 | Withdrawals | `withdrawals.go` | `withdrawals.go` | `withdrawals.go` |
+| Kill Board | `killboard.go` | `killboard.go` | `killboard.go` |
 | Teams, timer | `teams.go`, `timer.go` | same names | same names |
 | Results | `results.go` | `results.go` | `results.go` |
 
