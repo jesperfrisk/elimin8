@@ -83,6 +83,7 @@ func (s *GameService) RespondElimination(ctx context.Context, a models.Access, i
 func transferElimination(g *models.Game, killer, victim *models.Player, now time.Time) {
 	// Removing the assigned target preserves the circle for all survivors.
 	killer.VictimID, killer.Mission = victim.VictimID, victim.Mission
+	recordKill(killer)
 	victim.EliminatedAt = &now
 	victim.VictimID, victim.Mission = "", ""
 	remaining := 0
