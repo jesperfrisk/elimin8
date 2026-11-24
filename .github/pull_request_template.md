@@ -4,6 +4,14 @@
 
 Closes #
 
+## Decisions
+
+<!-- Choices made while building this and who made them, or "none". -->
+
+| Decision | Options considered | Chosen | Decided by |
+| --- | --- | --- | --- |
+|  |  |  | human / default, unconfirmed |
+
 ## Target branch
 
 - [ ] Feature/fix/chore PR -> `dev`

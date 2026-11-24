@@ -15,6 +15,9 @@ You implement **one issue** and deliver a **ready-for-review PR into `dev`**. No
 - Base your branch on the **latest `origin/dev`**, not main.
 - Branch name: `<type>/<issue#>-<short-slug>` where type is `feature`, `fix`
   or `chore` (e.g. `feature/12-kill-feed`). One issue = one branch = one PR.
+- **The human decides how; you recommend.** Don't settle alone the choices that
+  are theirs to make (step 2a). Bring them in before writing code, with your
+  recommendation, and build what they choose.
 - Stay in scope. Anything discovered but out of scope goes in the PR body /
   final report so the orchestrator can file a new issue. Don't fix it.
 - Follow `CLAUDE.md`: server is authoritative, no leaking
@@ -31,12 +34,13 @@ Target **<= ~150k tokens** for the whole ticket. To stay inside it:
    (`cd backend && go test ./internal/services -run X`), the full suite once
    before pushing.
 3. Checkpoint: once you understand the task, if you estimate it won't fit
-   (touches many unrelated areas, needs design decisions, needs more than ~8
-   files of real changes), **stop** and report `NEEDS-SPLIT` with a proposed
+   (touches many unrelated areas, needs more than ~8 files of real changes),
+   **stop** and report `NEEDS-SPLIT` with a proposed
    split. An oversized ticket is for the orchestrator to re-slice, not for
    you to grind through.
-4. If you are blocked on a human decision, report `NEEDS-INPUT` with the
-   exact question rather than guessing.
+4. Open design decisions are not a reason to split: settle them with the
+   human (step 2a). Only when no human is available *and* the choice is hard
+   to undo, report `NEEDS-INPUT` with the exact question rather than guessing.
 
 ## Procedure
 
@@ -56,6 +60,54 @@ Target **<= ~150k tokens** for the whole ticket. To stay inside it:
    minimal and mention it in the PR.
 2. `git fetch origin && git switch -c <branch> origin/dev`, then
    `git branch --unset-upstream` so a bare `git push` can't hit dev.
+2a. **Decision checkpoint: decide together, before writing code.** The people
+   you work with want a say in *how* a ticket is solved. Having read the issue
+   and the code it touches, list the decisions that are genuinely theirs and
+   settle them with the human first.
+
+   *Ask about* (typical examples):
+   - more than one reasonable reading of an acceptance criterion or game rule;
+   - choices the issue leaves open: data/API shape beyond the contract, status
+     codes and error behaviour, UX flow, wording users will read;
+   - changing existing behaviour, or the expectation of an existing test;
+   - trade-offs: editing a shared file beyond "Owns files", adding a
+     dependency or installing a tool, adding an endpoint the issue doesn't list;
+   - scope: what goes in this PR and what becomes a follow-up.
+
+   *Don't ask about*: anything already fixed by the issue, `CLAUDE.md` or an
+   existing convention in the code; naming, formatting, or other choices that
+   are cheap to change in review. If nothing is open, say "no open decisions"
+   in one line and carry on. This is a short conversation, not a questionnaire.
+
+   *How:*
+   - Use `AskUserQuestion`: up to 4 questions per call, 2-4 options each. Put
+     your **recommendation first**, labelled "(Recommended)", and say why in
+     its description; give the trade-off of every other option. Make each
+     question stand on its own (name the ticket and what is being decided; the
+     person may only see the dialog). Use `preview` to compare API shapes,
+     snippets or UI sketches. They can always answer "Other".
+   - If the choices are tangled (one answer opens new questions), the ticket is
+     vague, or it is large, invoke the `grill-me` skill instead: walk the
+     decision tree one question at a time, each with your recommended answer,
+     until you share an understanding.
+   - **Their answer wins**, even over your recommendation. Don't re-argue it.
+     If it would break a hard rule (privacy and authority rules in
+     `CLAUDE.md`, never merging, ...), say so once and ask again; don't
+     silently deviate. If it grows the ticket past the ~150k budget, report
+     `NEEDS-SPLIT` with what they decided.
+   - A new decision turns up mid-work? Pause and ask the same way (batch them);
+     don't guess and don't leave it for the PR.
+   - Record every decision (what, options, chosen, who decided) in the PR's
+     **Decisions** section (see the template).
+
+   *No human available* (you are a subagent, a `/worker-loop` tick, or
+   `AskUserQuestion` is unavailable or unanswered): never block. A subagent
+   uses the decisions its spawning session collected and passed in its prompt
+   (`pick-ticket` runs this checkpoint before spawning). For anything still
+   open, take your recommended option, mark it `default, unconfirmed` in the
+   PR's Decisions section so a human can overrule it in review, and list it in
+   the final report. If the choice is hard to undo or contradicts the issue,
+   release the claim and report `NEEDS-INPUT` with the exact question instead.
 3. Implement the thinnest vertical slice satisfying the acceptance criteria.
    Add/adjust tests next to existing ones (Go: `*_test.go` beside the code;
    e2e: `frontend/tests/*.spec.js`). Update README/CHANGELOG only where
@@ -95,4 +147,6 @@ Target **<= ~150k tokens** for the whole ticket. To stay inside it:
    - PR URL and branch
    - What `make check` / tests showed (say honestly what was not run)
    - Areas/files touched (for conflict prediction)
+   - Decisions made together with the human, and any taken as
+     `default, unconfirmed` that still need a human's eye
    - Follow-ups discovered
