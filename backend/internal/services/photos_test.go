@@ -359,3 +359,37 @@ func TestPhotoReadRetentionBoundaryAndCancelledLobby(t *testing.T) {
 		t.Fatalf("photo available at expiry: %v", err)
 	}
 }
+
+// Simulate a database commit whose acknowledgement is lost. A later read is not
+// needed to classify this failure: the service must conservatively keep the key.
+type committedPhotoErrorRepository struct {
+	*testutil.Memory
+}
+
+func (r *committedPhotoErrorRepository) Save(ctx context.Context, g *models.Game, previous int64) error {
+	if err := r.Memory.Save(ctx, g, previous); err != nil {
+		return err
+	}
+	return context.DeadlineExceeded
+}
+func TestPhotoPreservesObjectAfterAmbiguousCommittedSave(t *testing.T) {
+	f := newPhotoFixture(t)
+	games := services.NewGameService(&committedPhotoErrorRepository{Memory: f.repo})
+	photos := services.NewPhotoService(games, f.store)
+	photos.Now = func() time.Time { return f.now }
+	ctx := context.Background()
+	if _, err := photos.Put(ctx, f.player, "p0", photoPNG(t)); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected ambiguous acknowledgement failure, got %v", err)
+	}
+	g := f.game(t)
+	if g.Players[0].PhotoID == "" {
+		t.Fatal("test repository did not commit photo reference")
+	}
+	data, err := photos.Get(ctx, "g1", g.Players[0].PhotoID, nil)
+	if err != nil {
+		t.Fatalf("committed photo must survive ambiguous acknowledgement: %v", err)
+	}
+	if _, err = jpeg.DecodeConfig(bytes.NewReader(data)); err != nil {
+		t.Fatalf("committed photo is not readable JPEG: %v", err)
+	}
+}
