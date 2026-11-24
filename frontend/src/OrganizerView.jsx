@@ -3,6 +3,7 @@ import { request } from "./api";
 import { LobbyMissions } from "./LobbyMissions";
 import { gameActionError } from "./gameActionError";
 import { CopyButton } from "./common";
+import { teamStartBlocker } from "./Teams";
 
 export function OrganizerView({ game, access, run, busy, action, refresh }) {
   const [issued, setIssued] = useState([]);
@@ -54,10 +55,11 @@ export function OrganizerView({ game, access, run, busy, action, refresh }) {
         </div>
         <div className="actions">
           {lobby && (
-            <button disabled={busy} onClick={() => transition("start")}>
+            <button disabled={busy || !!teamStartBlocker(game)} onClick={() => transition("start")}>
               Start game →
             </button>
           )}
+          {lobby && teamStartBlocker(game) && <p className="muted" role="status">{teamStartBlocker(game)}</p>}
           {game.status !== "ended" && (
             <button
               className="danger secondary"
