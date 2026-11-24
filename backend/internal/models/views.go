@@ -48,6 +48,12 @@ type GameView struct {
 	Eliminations     []Elimination     `json:"eliminations,omitempty"`
 	WinnerID         string            `json:"winnerId,omitempty"`
 
+	// Timer: visible to every role. Remaining time is computed at view time.
+	TimerMinutes     *int       `json:"timerMinutes"`
+	EndsAt           *time.Time `json:"endsAt"`
+	RemainingSeconds *int64     `json:"remainingSeconds"`
+	EndReason        *string    `json:"endReason"`
+
 	// Organizer only. Players and participants never receive team setup.
 	Mode  string          `json:"mode,omitempty"`
 	Teams []TeamSetupView `json:"teams,omitempty"`

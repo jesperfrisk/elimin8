@@ -11,6 +11,7 @@ func View(g *models.Game, a models.Access) models.GameView {
 		v.Missions = &missions
 	}
 	v.WinnerID = g.WinnerID
+	timerView(&v, g)
 	if a.PlayerID == "" {
 		v.Mode = string(models.ModeIndividual)
 		if g.Mode != "" {

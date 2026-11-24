@@ -18,7 +18,7 @@ rules and the [CHANGELOG](CHANGELOG.md) for what has shipped.
 - [ ] Support confirmed player withdrawals
 - [ ] Create privacy-safe Kill Board
 - [ ] Track kills privately
-- [ ] Support optional game timers
+- [x] Support optional game timers
 - [ ] Detect individual and team winners
 - [ ] Calculate game results
 

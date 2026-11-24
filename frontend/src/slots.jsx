@@ -17,10 +17,12 @@ import React from "react";
 // UI to hide private data.
 
 // game.status === "lobby"
-export const lobbyPanels = [];
+import { Timer } from "./Timer";
+
+export const lobbyPanels = [Timer];
 
 // game.status === "active"
-export const inGamePanels = [];
+export const inGamePanels = [Timer];
 
 // game.status === "ended"
 export const gameOverPanels = [];

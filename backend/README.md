@@ -165,3 +165,7 @@ Browsers fetch their authorized state after subscribing, after reconnecting, and
 The game revision and last published revision form a coalescing outbox stored atomically with state changes. A worker wakes after mutations and retries pending delivery every three seconds. Duplicate notifications and coalesced intermediate revisions are expected. MongoDB remains authoritative, and reconnecting clients always resynchronize. Broker subscriptions are in memory; database state/outbox survive restarts.
 
 Run one API/broker instance with this configuration. Revision checks protect database writes across instances, but horizontal realtime fan-out requires a shared broker or shared event bus before scaling out.
+
+## Game timer
+
+`PUT /api/games/{id}/timer` with `{"durationMinutes": 1..10080 | null}` sets or clears the limit (organizer, lobby only). Starting the game stores `timer.endsAt = startedAt + limit`. Expiry is checked lazily inside every game read/write (`mutate`, `Authorize`) and by a 5 second background sweep (`RunTimerSweep`), so it survives restarts; the revision-checked save makes it happen exactly once. Expired games become `ended` with `endReason: "timer"` and `endedAt = endsAt`, pending eliminations are cancelled, and `GameService.OnTimerExpired` (a no-op) is the hook for the results ticket. `GameView` exposes `timerMinutes`, `endsAt`, `remainingSeconds` and `endReason` to all roles.

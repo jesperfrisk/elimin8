@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/jesperfrisk/elimin8/backend/internal/models"
 	"github.com/jesperfrisk/elimin8/backend/internal/services"
@@ -70,6 +71,17 @@ func (m *Memory) Save(_ context.Context, g *models.Game, previous int64) error {
 	copy.PublishedRevision = existing.PublishedRevision
 	m.Games[g.ID] = copy
 	return nil
+}
+func (m *Memory) DueTimers(_ context.Context, now time.Time) ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var ids []string
+	for id, g := range m.Games {
+		if g.Status == "active" && g.Timer != nil && g.Timer.EndsAt != nil && !now.Before(*g.Timer.EndsAt) {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
 }
 func (m *Memory) PutAccess(_ context.Context, a models.Access) error {
 	m.mu.Lock()
