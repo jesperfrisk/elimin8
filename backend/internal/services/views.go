@@ -43,6 +43,7 @@ func View(g *models.Game, a models.Access) models.GameView {
 			v.ParticipantCount++
 		}
 		pv := models.PlayerView{ID: p.ID, Name: p.Name, JoinedAt: p.JoinedAt, Included: p.Included, EliminatedAt: p.EliminatedAt}
+		pv.PhotoURL = PhotoURL(g.ID, p.PhotoID)
 		if g.Status != "lobby" && p.Included {
 			pv.Status = PlayerStatus(p)
 			v.Participants = append(v.Participants, models.ParticipantView{ID: p.ID, Name: p.Name, Status: pv.Status, EliminatedAt: p.EliminatedAt})
