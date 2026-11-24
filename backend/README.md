@@ -52,7 +52,7 @@ From the repository root:
 make up
 ```
 
-(equivalent to `docker compose up --build --wait`; see the root [Makefile](../Makefile)). The API is available at `http://localhost:8080` (override with `BACKEND_PORT` in a root `.env`, see [.env.example](../.env.example)). Compose starts MongoDB first, waits for its health check, then starts the API. MongoDB data persists in a named Docker volume.
+(equivalent to `docker compose up --build --wait`; see the root [Makefile](../Makefile)). The API is available at `http://localhost:8080` (override with `BACKEND_PORT` in a root `.env`, see [.env.example](../.env.example)). Before starting, copy the root `.env.example` to `.env` and set unique `PHOTO_STORAGE_ACCESS_KEY` and `PHOTO_STORAGE_SECRET_KEY` values. Compose waits for MongoDB and the private RustFS object store to become healthy before starting the API. MongoDB and RustFS data persist in separate named Docker volumes.
 
 ## Run Locally
 
@@ -93,7 +93,7 @@ MongoDB currently stores two collections:
 - `games`: game details, unique invitation code, organizer-code hash, lifecycle timestamps, embedded player roster, revision, and last published revision. Each player stores their name, private-code hash, credential version, joined timestamp, and inclusion flag.
 - `game_access`: hashed temporary bearer tokens, scoped game/player identity, credential version, and expiry. A TTL index removes expired entries; authorization also checks expiry directly.
 
-Game documents also embed lobby mission candidates (`id`, `text`, `enabled`). They have no shared pool, separate collection, or lifecycle outside their game. IDs support lobby controls only. Starting copies one randomly selected mission text into each joined player's `mission` field. Every enabled entry is used once before reuse; each round uses a fresh Fisher–Yates shuffle with unbiased cryptographic random indices. Repeated text represents separate entries. Disabled entries and unjoined invitees are excluded. Starting requires at least two joined players and one enabled mission; failure returns HTTP 409 with an actionable error.
+Game documents also embed lobby mission candidates (`id`, `text`, `enabled`). They have no shared pool, separate collection, or lifecycle outside their game. IDs support lobby controls only. Starting copies one randomly selected mission text into each joined player's `mission` field. Every enabled entry is used once before reuse; each round uses a fresh Fisherâ€“Yates shuffle with unbiased cryptographic random indices. Repeated text represents separate entries. Disabled entries and unjoined invitees are excluded. Starting requires at least two joined players and one enabled mission; failure returns HTTP 409 with an actionable error.
 
 Victim assignment shuffles the joined roster into a single circle, storing the next participant's ID in each player's `victimId`. Each participant has exactly one victim and one hunter, with no self-targets or smaller disconnected circles. Player IDs distinguish participants even when names match. Teams are not implemented yet.
 
@@ -181,3 +181,13 @@ Run one API/broker instance with this configuration. Revision checks protect dat
 ## Game timer
 
 `PUT /api/games/{id}/timer` with `{"durationMinutes": 1..10080 | null}` sets or clears the limit (organizer, lobby only). Starting the game stores `timer.endsAt = startedAt + limit`. Expiry is checked lazily inside every game read/write (`mutate`, `Authorize`) and by a 5 second background sweep (`RunTimerSweep`), so it survives restarts; the revision-checked save makes it happen exactly once. Expired games become `ended` with `endReason: "timer"` and `endedAt = endsAt`, pending eliminations are cancelled, and `GameService.OnTimerExpired` stores the final result (see Final results). `GameView` exposes `timerMinutes`, `endsAt`, `remainingSeconds` and `endReason` to all roles.
+
+## Private photo storage foundation
+
+[RustFS](https://docs.rustfs.com/en/installation/container) is open source under Apache 2.0 and runs entirely locally in Docker; no cloud account is required. Compose pins `rustfs/rustfs:1.0.0-beta.9`, disables its console, and binds its S3 port to loopback. `PHOTO_STORAGE_PORT` changes the host port only (default 9000); the backend always connects to `http://rustfs:9000` inside Compose. Copy the root `.env.example` and set unique `PHOTO_STORAGE_ACCESS_KEY` and `PHOTO_STORAGE_SECRET_KEY` before `make up`; empty credentials fail configuration instead of enabling known default credentials. `PHOTO_STORAGE_REGION` defaults to `us-east-1`, and `PHOTO_STORAGE_BUCKET` to `elimin8-photos`.
+
+For native Go development, leave `PHOTO_STORAGE_ENDPOINT` and both credential variables unset to disable storage. To enable it, start Compose's `rustfs` service, export `PHOTO_STORAGE_ENDPOINT=http://127.0.0.1:9000` (adjust for the host port), and export the same region, bucket, and credentials as Compose. The binary does not load `.env` files automatically. Partial configuration is rejected. Use HTTPS for object storage beyond a trusted local network.
+
+Startup creates a missing bucket with the provider's default private ACL, tolerates another API instance creating that same owned bucket first, and checks both bucket ACL and bucket policy. The bucket must be dedicated to photos, with no policy and no grants to anyone except its owner; startup refuses an existing policy or broader grant and never rewrites external permissions. The storage credential therefore needs HeadBucket/CreateBucket, GetBucketAcl/GetBucketPolicy, and object Put/Get/Delete/List permissions. Keep the bucket private: subsequent photo endpoints serve images through the backend rather than exposing S3 URLs or credentials.
+
+The adapter uses the official AWS SDK for Go v2 with explicit credentials and path-style addressing for S3-compatible stores. Each object is bounded to 5 MiB for both writes and reads; listings follow continuation tokens and cap accumulated results at 100,000. Objects use `games/<gameID>/photos/<photoID>` keys generated by application code. Error messages and SDK logging do not expose credentials, bucket paths, or remote diagnostics. This foundation adds no photo HTTP routes; API/processing and 24-hour post-game cleanup are tracked separately in #54 and #55, under #37.
