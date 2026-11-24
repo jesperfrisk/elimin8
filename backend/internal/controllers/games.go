@@ -41,6 +41,7 @@ func (c *GameController) Register(mux *http.ServeMux) {
 	c.registerTimer(mux)
 	c.registerKillBoard(mux)
 	c.registerResults(mux)
+	c.registerRecap(mux)
 }
 
 func gameJSON(w http.ResponseWriter, status int, v any) {
