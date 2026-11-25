@@ -7,6 +7,12 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Fixed
 
+- Pending elimination reports are now cancelled when team-circle repair gives
+  the killer a different target (#49). Previously a report whose killer and
+  victim were both still alive stayed pending, could not be accepted, and
+  blocked the killer from reporting the new target. The check runs in the same
+  revision-checked mutation as the transfer, so reconnects see the persisted
+  cancellation.
 - `MONGODB_URI` in `compose.yaml` pointed the backend at Mongo's
   host-remapped port instead of its container-internal port. Compose port
   mappings (`host:container`) only affect connections from the host; traffic
