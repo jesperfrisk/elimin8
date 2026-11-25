@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jesperfrisk/elimin8/backend/internal/models"
 	"github.com/jesperfrisk/elimin8/backend/internal/services"
@@ -183,6 +184,133 @@ func TestTeamPrivacy(t *testing.T) {
 		t.Fatal(err)
 	}
 	check("active")
+}
+
+// memberNames returns the names in a player's own-team view, sorted by the
+// order the service lists them.
+func memberNames(v models.GameView) []string {
+	if v.Me == nil || v.Me.Team == nil {
+		return nil
+	}
+	names := []string{}
+	for _, m := range v.Me.Team.Members {
+		names = append(names, m.Name)
+	}
+	return names
+}
+
+func TestStartedTeamViewListsOnlyIncludedTeammates(t *testing.T) {
+	s, repo, game, owner, players := setup(t) // Alice(0), Bob(1)
+	ctx := context.Background()
+	more, err := s.AddPlayers(ctx, owner, []string{"Cara", "Dan", "Eve"}) // 2, 3, 4
+	if err != nil {
+		t.Fatal(err)
+	}
+	players = append(players, more...)
+	// Everyone except Cara (player 2) joins. Cara is still assigned to team A.
+	var joined []models.IssuedPlayer
+	for i, p := range players {
+		if i != 2 {
+			joined = append(joined, p)
+		}
+	}
+	joinPlayers(t, s, game, joined)
+	if _, err = s.AddMissions(ctx, owner, []string{"Hide a spoon"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SetMode(ctx, owner, models.ModeTeam); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.SetTeams(ctx, owner, []services.TeamInput{
+		{Name: "Crimson", PlayerIDs: []string{players[0].ID, players[2].ID, players[4].ID}}, // Alice, Cara, Eve
+		{Name: "Azure", PlayerIDs: []string{players[1].ID, players[3].ID}},                  // Bob, Dan
+	}); err != nil {
+		t.Fatal(err)
+	}
+	access := func(i int) models.Access { return models.Access{GameID: game.Game.ID, PlayerID: players[i].ID} }
+	load := func() *models.Game {
+		g, err := repo.Get(ctx, game.Game.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return g
+	}
+
+	// Lobby behaviour is preserved: setup lists everyone assigned to the team,
+	// and the organizer sees the full configuration.
+	if got := memberNames(services.View(load(), access(0))); len(got) != 3 {
+		t.Fatalf("lobby team members = %v, want all 3 assigned", got)
+	}
+
+	if err = s.Transition(ctx, owner, "start"); err != nil {
+		t.Fatalf("a valid four-player game should start: %v", err)
+	}
+	g := load()
+	if got := services.View(g, access(0)).ParticipantCount; got != 4 {
+		t.Fatalf("participants = %d, want 4", got)
+	}
+
+	assertStarted := func(label string, v models.GameView) {
+		t.Helper()
+		got := memberNames(v)
+		if len(got) != 2 || got[0] != "Alice" || got[1] != "Eve" {
+			t.Fatalf("%s: team members = %v, want [Alice Eve]", label, got)
+		}
+		raw, _ := json.Marshal(v)
+		if strings.Contains(string(raw), "Cara") {
+			t.Fatalf("%s: excluded invitee Cara appears in the player response: %s", label, raw)
+		}
+		teamJSON, _ := json.Marshal(v.Me.Team)
+		for _, other := range []string{"Azure", "Bob", "Dan"} {
+			if strings.Contains(string(teamJSON), other) {
+				t.Fatalf("%s: opposing team data %q in own-team view: %s", label, other, teamJSON)
+			}
+		}
+		for _, secret := range []string{"mission", "victim", "codeHash", "Code"} {
+			if strings.Contains(string(teamJSON), secret) {
+				t.Fatalf("%s: own-team view carries %q: %s", label, secret, teamJSON)
+			}
+		}
+	}
+	assertStarted("active", services.View(g, access(0)))
+
+	// Reconnect: a returning player's admission carries the same projection.
+	back, err := s.Login(ctx, game.Game.InvitationCode, players[0].Code, "player")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertStarted("reconnect admission", back.Game)
+	a, fresh, err := s.Authorize(ctx, back.Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertStarted("reconnect fetch", services.View(fresh, a))
+
+	// The organizer keeps the full configuration, including the unjoined invitee.
+	org := services.View(g, models.Access{GameID: g.ID})
+	var crimson int
+	for _, team := range org.Teams {
+		if team.Name == "Crimson" {
+			crimson = len(team.PlayerIDs)
+		}
+	}
+	if crimson != 3 {
+		t.Fatalf("organizer lost configuration: Crimson has %d players, want 3", crimson)
+	}
+
+	// Included teammates stay listed after elimination or withdrawal, and an
+	// ended game keeps the same list. This filters on inclusion, not on life.
+	now := time.Now().UTC()
+	g.Players[4].EliminatedAt = &now // Eve is eliminated
+	assertStarted("teammate eliminated", services.View(g, access(0)))
+	g.Players[0].WithdrawnAt = &now // Alice withdraws; Eve's view must still list both
+	if got := memberNames(services.View(g, access(4))); len(got) != 2 {
+		t.Fatalf("withdrawn teammate dropped from the list: %v", got)
+	}
+	g.Status, g.EndedAt = "ended", &now
+	if got := memberNames(services.View(g, access(4))); len(got) != 2 || strings.Contains(strings.Join(got, ","), "Cara") {
+		t.Fatalf("ended game team members = %v", got)
+	}
 }
 
 func TestIndividualModeUnchanged(t *testing.T) {

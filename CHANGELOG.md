@@ -7,6 +7,12 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Fixed
 
+- After a team game starts, a player's own-team list (`me.team.members`) no
+  longer includes invitees who never joined (#51). Lobby setup can assign
+  unjoined invitees to a team, but starting freezes the roster to the joined
+  participants. Included teammates stay listed after elimination or
+  withdrawal, and the lobby view and the organizer's configuration are
+  unchanged.
 - `MONGODB_URI` in `compose.yaml` pointed the backend at Mongo's
   host-remapped port instead of its container-internal port. Compose port
   mappings (`host:container`) only affect connections from the host; traffic
