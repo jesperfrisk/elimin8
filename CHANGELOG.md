@@ -7,6 +7,11 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Fixed
 
+- Clearing the game timer and deleting all teams did not persist in MongoDB
+  (#43): the repository used only `$set` with BSON `omitempty`, so a cleared
+  field stayed stored and reappeared on the next read. `Save` now `$unset`s
+  every absent top-level game field in the same revision-filtered atomic
+  update, leaving `publishedRevision` (the outbox) untouched.
 - `MONGODB_URI` in `compose.yaml` pointed the backend at Mongo's
   host-remapped port instead of its container-internal port. Compose port
   mappings (`host:container`) only affect connections from the host; traffic
