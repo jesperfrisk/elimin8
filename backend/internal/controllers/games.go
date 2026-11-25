@@ -41,6 +41,7 @@ func (c *GameController) Register(mux *http.ServeMux) {
 	c.registerTimer(mux)
 	c.registerKillBoard(mux)
 	c.registerResults(mux)
+	c.registerBoard(mux)
 }
 
 func gameJSON(w http.ResponseWriter, status int, v any) {
@@ -113,9 +114,12 @@ func decodeGame(w http.ResponseWriter, r *http.Request, v any) bool {
 
 // Bound both expensive code hashing and anonymous game creation. RemoteAddr is
 // deliberately not replaced with untrusted forwarding headers.
-func (c *GameController) allow(r *http.Request) bool {
+func (c *GameController) allow(r *http.Request) bool { return c.allowN(r, r.URL.Path, 30) }
+
+// allowN is allow with an explicit bucket name and per-minute limit.
+func (c *GameController) allowN(r *http.Request, bucket string, limit int) bool {
 	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	key := host + ":" + r.URL.Path
+	key := host + ":" + bucket
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	now := time.Now()
@@ -128,7 +132,7 @@ func (c *GameController) allow(r *http.Request) bool {
 	if v.until.IsZero() {
 		v.until = now.Add(time.Minute)
 	}
-	if v.count >= 30 || len(c.attempts) >= 10000 {
+	if v.count >= limit || len(c.attempts) >= 10000 {
 		return false
 	}
 	v.count++

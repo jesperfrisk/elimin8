@@ -17,6 +17,13 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
+- Public live board API (#36): `GET /api/board/{gameId}` and an anonymous,
+  read-only MQTT topic `boards/{gameId}/updates` expose only names, status, a
+  stable display number, the active count and the timer, so a TV can watch a
+  game from a link. New game ids are 26 characters (130 bits) because the id
+  is now the board link; older 120-bit ids keep working. The topic only fires
+  when the visible board changes, so private revisions (such as a pending
+  elimination report) do not leak timing.
 - `dev` integration branch and a documented `feature/* -> dev -> main` flow
   (see `CLAUDE.md`). `main` is only changed by human-approved PRs from `dev`.
 - Multi-agent ticket workflow: `/orchestrate-tickets` skill (slices work into

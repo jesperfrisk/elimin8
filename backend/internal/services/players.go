@@ -99,6 +99,9 @@ func (s *GameService) AddPlayers(ctx context.Context, a models.Access, names []s
 			}
 			seen[p.CodeHash] = true
 		}
+		for i := range players {
+			players[i].Number = len(g.Players) + i + 1
+		}
 		g.Players = append(g.Players, players...)
 		return nil
 	})
