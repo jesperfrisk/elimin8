@@ -103,9 +103,10 @@ MQTT.js subscribes to the role-scoped topic returned by the API. Subscribe ackno
 
 ## End-to-end Checks
 
-Start the Docker stack, then run:
+Start the isolated test stack, then run the suite. `make e2e-up` applies `compose.e2e.yaml`, which raises the backend login limit to 600 attempts per minute for this stack only; the default of 30 is shared by every browser behind Nginx and the full suite exceeds it, causing unrelated HTTP 429 failures. Fixture logins assert a successful response, so a rate-limit failure is reported at the login rather than later.
 
 ```sh
+make e2e-up
 make frontend-test
 ```
 

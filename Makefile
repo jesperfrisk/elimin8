@@ -1,6 +1,6 @@
 .PHONY: up down logs ps build clean \
 	backend-run backend-test backend-vet backend-fmt-check \
-	frontend-dev frontend-build frontend-test check
+	frontend-dev frontend-build frontend-test e2e-up check
 
 ## Fast pre-push gate (same checks as CI; needs no running services)
 check: backend-fmt-check backend-vet backend-test frontend-build
@@ -45,6 +45,10 @@ frontend-dev:
 frontend-build:
 	cd frontend && npm ci && npm run build
 
-## End-to-end tests (requires the Docker stack running, e.g. `make up`)
+## Isolated stack for the browser suite: raises the login limit to 600/min (test-only)
+e2e-up:
+	docker compose -f compose.yaml -f compose.e2e.yaml up --build --wait -d
+
+## End-to-end tests (requires the stack from `make e2e-up`; plain `make up` hits the 30/min login limit)
 frontend-test:
 	cd frontend && npm run test:e2e
