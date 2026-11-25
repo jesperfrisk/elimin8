@@ -7,6 +7,11 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Fixed
 
+- In team mode, a lone surviving player is now recorded as a win for their
+  team (#44). `detectWinner` handled "one player left" before checking the
+  game mode, so a team game ended with a player winner while the result still
+  listed team standings. Individual mode is unchanged. Games that already
+  ended this way keep their stored winner.
 - `MONGODB_URI` in `compose.yaml` pointed the backend at Mongo's
   host-remapped port instead of its container-internal port. Compose port
   mappings (`host:container`) only affect connections from the host; traffic

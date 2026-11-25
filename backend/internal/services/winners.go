@@ -47,7 +47,15 @@ func detectWinner(g *models.Game, now time.Time) bool {
 	case len(living) == 0:
 		return false
 	case len(living) == 1:
-		finishGame(g, living, now, winnerPlayer, living[0].ID)
+		// A team game is won by a team even when a single player is left; only
+		// individual mode has a player winner. TeamID is always set for included
+		// players in team mode (the start check requires it), so the player
+		// fallback is just a guard for malformed data.
+		if g.Mode == models.ModeTeam && living[0].TeamID != "" {
+			finishGame(g, living, now, winnerTeam, living[0].TeamID)
+		} else {
+			finishGame(g, living, now, winnerPlayer, living[0].ID)
+		}
 		return true
 	case g.Mode == models.ModeTeam && !feasibleCircle(keys):
 		if team := dominantTeam(living); team != "" {
