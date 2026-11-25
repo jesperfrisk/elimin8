@@ -28,7 +28,11 @@ free, say which tickets are blocked/taken and by whom, and stop.
 ## Work it
 
 Follow the `ticket-worker` skill from step 0 (claim) onward, either yourself
-or by spawning one `ticket-worker` subagent. Two tickets that list the same
+or by spawning one `ticket-worker` subagent. **Include the person you're
+working with in the decisions:** run the decision checkpoint (`ticket-worker`
+step 2a) in this session, with your recommendations, before any code is
+written. If you hand the ticket to a subagent, put their answers in its prompt;
+a subagent can't reliably ask them itself. Two tickets that list the same
 file under "Owns files" must not run in parallel: if one of those is already
 `in-progress`, skip to the next free ticket.
 

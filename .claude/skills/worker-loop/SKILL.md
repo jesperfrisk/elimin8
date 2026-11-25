@@ -41,6 +41,11 @@ was released). All state lives in GitHub; the issue assignee is the lock.
 - Never merge, never approve, never push to `dev`/`main`; the reviewer loop
   merges. Force-push only `--force-with-lease` on your own branch after a
   rebase, with the user's approval.
+- Decisions (`ticket-worker` step 2a): when step 3 picks a *new* ticket and a
+  human is attached to this session, run the decision checkpoint with them
+  first. An unattended tick never blocks on a question: it takes the
+  recommended option, marks it `default, unconfirmed` in the PR's Decisions
+  section, and lets review overrule it.
 - Never sleep or poll inside a tick; the loop provides the cadence.
 
 ## Status line
