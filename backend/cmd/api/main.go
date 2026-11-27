@@ -48,7 +48,7 @@ func run() error {
 		store, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
 		storageCancel()
 		if err != nil {
-			return errors.New("private photo storage could not be initialized; check PHOTO_STORAGE settings and storage availability")
+			return errors.New("private photo storage could not be initialized during " + storage.InitializationStage(err) + "; check PHOTO_STORAGE settings, access permissions, and storage availability")
 		}
 		photoStore = store
 	}

@@ -64,6 +64,9 @@ func TestStartupFailsClosedWhenConfiguredPhotoStorageUnavailable(t *testing.T) {
 	if !attempted.Load() || err == nil || !strings.Contains(err.Error(), "photo storage") || strings.Contains(err.Error(), "MongoDB") {
 		t.Fatalf("configured inaccessible storage did not stop startup before MongoDB: %v", err)
 	}
+	if !strings.Contains(err.Error(), "during bucket lookup") {
+		t.Fatal("startup did not identify the safe initialization stage")
+	}
 	for _, secret := range []string{remote.URL, "startup-private-bucket", "startup-private-access", "startup-private-secret", "private-request-marker", "private-remote-diagnostic"} {
 		if strings.Contains(err.Error(), secret) {
 			t.Fatal("startup exposed remote storage diagnostics or credentials")
