@@ -95,6 +95,6 @@ Media:
 
 Developer experience:
 
-- [ ] `make dev`: seed realistic test data (lobbies with believable players)
+- [ ] `make dev`: seed realistic test data (lobbies with believable players) (partial, #105: `make dev` starts the stack with a host-port preflight, the mongo-express and RustFS console web UIs, and prints local URLs; seeding is #96/#97)
 - [x] Backend build revision at `GET /api/version` to spot stale Docker images (#98; diagnostic only, rebuild is still manual via `make up`)
 - [x] `make reset`: restore everything to a clean state (#76: removes this Compose project's MongoDB and RustFS volumes without reseeding)

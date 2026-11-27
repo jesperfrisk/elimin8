@@ -22,7 +22,8 @@ shipping a feature), and [backend/README.md](backend/README.md) /
 Prefer the root `Makefile` targets; see it for the full list.
 
 ```sh
-make up              # docker compose up --build --wait
+make up              # port preflight + docker compose up --build --wait
+make dev             # make up + print app/backend/mongo-express/RustFS console URLs
 make down             # docker compose down (keeps DB data)
 make clean            # docker compose down -v (deletes DB data)
 make logs
@@ -109,10 +110,12 @@ lock. Any number of each role may run concurrently.
 
 ## Local environment
 
-- Host ports for `mongodb`/`backend`/`frontend` are overridable via
-  `MONGODB_PORT`, `BACKEND_PORT`, `FRONTEND_PORT` in a root `.env` (copy
-  from `.env.example`). Never hardcode a different port directly in
-  `compose.yaml` — that's how a prior bug slipped in (see CHANGELOG.md).
+- Every host port is overridable in a root `.env` (copy from
+  `.env.example`): `MONGODB_PORT`, `BACKEND_PORT`, `FRONTEND_PORT`,
+  `MONGO_UI_PORT`, `PHOTO_STORAGE_PORT`, `PHOTO_STORAGE_CONSOLE_PORT`. Never
+  hardcode a different port directly in `compose.yaml` — that's how a prior
+  bug slipped in (see CHANGELOG.md). A new published port needs its own
+  `${VAR:-default}` so `scripts/check-ports.sh` can name it on a clash.
 - `MONGODB_URI` inside `compose.yaml` must stay `mongodb://mongodb:27017`
   (the container-internal port). Only host-side port *mappings* are
   configurable; container-to-container traffic on the Compose network is

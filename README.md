@@ -15,20 +15,25 @@ Elimin8 manages secret assignments, teams, eliminations, withdrawals, timers, an
 Install Docker with Docker Compose v2 and start Docker Desktop (using Linux containers on Windows). From the repository root:
 
 ```sh
-make up
+cp .env.example .env   # first time only: fill in the empty credentials
+make dev
 ```
 
-(equivalent to `docker compose up --build --wait`; see the [Makefile](Makefile) for all shortcuts, or run `docker compose` directly.)
+`make dev` runs `make up` (a host-port preflight, then `docker compose up --build --wait`) and prints every local URL. See the [Makefile](Makefile) for all shortcuts, or run `docker compose` directly. Seeding sample games into `make dev` is planned ([#96](https://github.com/jesperfrisk/elimin8/issues/96)/[#97](https://github.com/jesperfrisk/elimin8/issues/97)); today the stack starts empty.
 
 - Frontend: http://localhost:3000
 - Backend readiness: http://localhost:8080/api/health/ready
+- MongoDB web UI (mongo-express): http://localhost:8081, basic auth `MONGO_UI_USERNAME` / `MONGO_UI_PASSWORD` from `.env`
+- RustFS (photo storage) web console: http://localhost:9001/rustfs/console/, log in with `PHOTO_STORAGE_ACCESS_KEY` / `PHOTO_STORAGE_SECRET_KEY` from `.env`
 - MongoDB: `mongodb://localhost:27017`, database `elimin8`
+
+Both web UIs are for local development only. They bind to 127.0.0.1 and can read and change all game data and photos. Compose refuses to start while any of the four credentials in `.env` is empty.
 
 The app includes organizer and player pages, code-based game access, MongoDB persistence, and live lobby/game updates over MQTT. Docker handles the Go and Node build tools; no local installation is required.
 
 Compose waits for MongoDB and the API to become healthy before starting dependent services. MongoDB data is stored in a named volume and survives container replacement. The frontend listens on all host interfaces on port 3000; the backend and MongoDB host ports remain bound to localhost.
 
-If any of those host ports already have something else running locally, copy [.env.example](.env.example) to `.env` and override `MONGODB_PORT`, `BACKEND_PORT`, and/or `FRONTEND_PORT`; Compose reads `.env` automatically. This only changes host-side bindings, not the ports services use to talk to each other inside Docker.
+If any of those host ports already have something else running locally, override `MONGODB_PORT`, `BACKEND_PORT`, `FRONTEND_PORT`, `MONGO_UI_PORT`, `PHOTO_STORAGE_PORT` and/or `PHOTO_STORAGE_CONSOLE_PORT` in `.env`; Compose reads `.env` automatically. This only changes host-side bindings, not the ports services use to talk to each other inside Docker. `make up`, `make dev` and `make e2e-up` check every host port first ([scripts/check-ports.sh](scripts/check-ports.sh), also `make preflight`). If a port is taken by another process or Docker container, or the same port is set twice, they stop before starting anything and name the `.env` variable to change. Ports held by this project's own running containers are fine. The check never edits `.env`.
 
 Devices on the same network can open `http://<your-computer-LAN-IP>:3000`. On Windows, use `ipconfig` to find the IPv4 address of your Wi-Fi or Ethernet adapter. API requests and MQTT connections go through the frontend automatically. If Windows Firewall blocks access, allow inbound TCP port 3000 from `LocalSubnet` on the active network profile. This configuration is for development on a trusted network.
 
