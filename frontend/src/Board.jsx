@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import mqtt from "mqtt";
 import { request } from "./api";
 import { formatRemaining, useCountdown } from "./Timer";
 import { fitGrid, initials, avatarHue, statusLabel } from "./boardLayout";
+import { diffNewlyOut, momentDuration, advanceRun, EMPTY_RUN } from "./boardMotion";
+import { getBoardSound } from "./boardSound";
 import "./board.css";
 
 // The public live board at #/board/<gameId>: read-only, no login. It calls only
@@ -14,16 +16,25 @@ function useBoard(gameId) {
   const [missing, setMissing] = useState(false);
   const [failed, setFailed] = useState(false);
   const [live, setLive] = useState("connecting");
+  // Changes that arrived over a live update and should get their moment.
+  const [feed, setFeed] = useState({ seq: 0, items: [] });
   useEffect(() => {
     let stopped = false,
       running = false,
       again = false,
       client,
       retryTimer,
+      previous = null,
+      nextCause = "catchup",
       retryDelay = 1000;
     const abort = new AbortController();
-    async function refresh() {
+    // cause "live": an MQTT message said the board changed, so changes since the
+    // last snapshot are animated. Anything else (first load, subscribe or
+    // reconnect catch-up, waking a sleeping tab, a retry) renders the final
+    // state silently.
+    async function refresh(cause = "catchup") {
       if (stopped) return;
+      if (cause === "live") nextCause = "live";
       if (running) {
         again = true;
         return;
@@ -32,10 +43,20 @@ function useBoard(gameId) {
       try {
         do {
           again = false;
+          const thisCause = nextCause;
+          nextCause = "catchup";
           const next = await request(`/api/board/${encodeURIComponent(gameId)}`, {
             signal: abort.signal,
           });
           if (stopped) return;
+          // A hidden tab can't show a moment, and replaying a backlog when it
+          // returns would be wrong, so hidden counts as catch-up.
+          if (thisCause === "live" && previous && document.visibilityState === "visible") {
+            const items = diffNewlyOut(previous.players, next.players);
+            if (previous.status === "active" && next.status === "ended") items.push({ id: "finale", kind: "finale" });
+            if (items.length) setFeed((f) => ({ seq: f.seq + 1, items }));
+          }
+          previous = next;
           setBoard(next);
           setMissing(false);
           setFailed(false);
@@ -52,13 +73,13 @@ function useBoard(gameId) {
         // Retry a failed synchronization only. No periodic polling.
         setFailed(true);
         clearTimeout(retryTimer);
-        retryTimer = setTimeout(safelyRefresh, retryDelay);
+        retryTimer = setTimeout(() => safelyRefresh(), retryDelay);
         retryDelay = Math.min(retryDelay * 2, 30000);
       } finally {
         running = false;
       }
     }
-    const safelyRefresh = () => refresh().catch(() => {});
+    const safelyRefresh = (cause) => refresh(cause).catch(() => {});
     const topic = `boards/${gameId}/updates`;
     const ws = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/mqtt`;
     client = mqtt.connect(ws, {
@@ -93,7 +114,7 @@ function useBoard(gameId) {
       if (t !== topic) return;
       try {
         const event = JSON.parse(payload.toString());
-        if (event.gameId === gameId && event.type === "board.updated") safelyRefresh();
+        if (event.gameId === gameId && event.type === "board.updated") safelyRefresh("live");
       } catch {
         /* A message only says "refetch"; it carries no board data. */
       }
@@ -114,7 +135,82 @@ function useBoard(gameId) {
       client.end(true);
     };
   }, [gameId]);
-  return { board, missing, failed, live };
+  return { board, missing, failed, live, feed };
+}
+
+const without = (object, key) => {
+  const { [key]: _removed, ...rest } = object;
+  return rest;
+};
+
+// Plays the live changes one after another, so each elimination is seen. A
+// player's tile keeps showing "active" until its moment starts, and the winner
+// flourish waits for the last elimination. A burst speeds up (see boardMotion).
+function useMoments(feed) {
+  const sound = getBoardSound();
+  const [pending, setPending] = useState({ ids: {}, finale: false });
+  const [active, setActive] = useState(null);
+  const queue = useRef([]);
+  const running = useRef(false);
+  const run = useRef(EMPTY_RUN);
+  const timer = useRef(null);
+  const seen = useRef(0);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  function next() {
+    const item = queue.current.shift();
+    if (!item) {
+      running.current = false;
+      run.current = EMPTY_RUN;
+      setActive(null);
+      return;
+    }
+    running.current = true;
+    const reduced = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const ms = momentDuration(item.kind, run.current, reduced);
+    run.current = advanceRun(run.current, item.kind, ms);
+    setPending((p) => (item.kind === "finale" ? { ...p, finale: false } : { ...p, ids: without(p.ids, item.id) }));
+    setActive({ ...item, ms });
+    // Eliminations get the gong, the end of the game the chord; withdrawals are silent.
+    if (item.kind === "eliminated") sound.play("elimination", { id: item.id });
+    else if (item.kind === "finale") sound.play("winner");
+    timer.current = setTimeout(next, ms);
+  }
+  useEffect(() => {
+    if (!feed.seq || seen.current === feed.seq) return;
+    seen.current = feed.seq;
+    queue.current.push(...feed.items);
+    setPending((p) => ({
+      ids: { ...p.ids, ...Object.fromEntries(feed.items.filter((i) => i.kind !== "finale").map((i) => [i.id, i.kind])) },
+      finale: p.finale || feed.items.some((i) => i.kind === "finale"),
+    }));
+    if (!running.current) next();
+  }, [feed.seq]);
+  return { pending, active };
+}
+
+// The "Tap to enable sound" gate (browsers block audio until a tap) and the mute toggle.
+function useSoundControls(sound) {
+  const state = useSyncExternalStore(sound.subscribe, sound.getState);
+  const [dismissed, setDismissed] = useState(false);
+  if (!state.supported) return { gate: null, toggle: null };
+  return {
+    gate:
+      !state.unlocked && !dismissed ? (
+        <section className="board-gate" aria-label="Sound">
+          <button className="board-gate-button" onClick={() => sound.enable()}>
+            Tap to enable sound
+          </button>
+          <button className="text-button" onClick={() => setDismissed(true)}>
+            Keep silent
+          </button>
+        </section>
+      ) : null,
+    toggle: state.unlocked ? (
+      <button className="secondary" aria-pressed={!state.muted} onClick={() => sound.toggleMute()}>
+        {state.muted ? "Sound off" : "Sound on"}
+      </button>
+    ) : null,
+  };
 }
 
 // Measures the area available to the grid so tiles can be sized to fit it.
@@ -202,12 +298,12 @@ function BoardTimer({ board }) {
   return null;
 }
 
-function Tile({ player, ended }) {
+function Tile({ player, ended, moment }) {
   const label = statusLabel(player.status, ended);
   return (
     <li
-      className={`tile ${player.status}${ended && player.status === "active" ? " survivor" : ""}`}
-      style={{ "--hue": avatarHue(player.id) }}
+      className={`tile ${player.status}${ended && player.status === "active" ? " survivor" : ""}${moment ? ` moment-${moment.kind}` : ""}`}
+      style={{ "--hue": avatarHue(player.id), ...(moment ? { "--moment": `${moment.ms}ms` } : null) }}
       aria-label={`${player.name}, ${label}`}
       title={player.name}
       data-status={player.status}
@@ -239,7 +335,7 @@ function EndedBanner({ board }) {
   );
 }
 
-function Grid({ board }) {
+function Grid({ board, active }) {
   const mainRef = useRef(null);
   const box = useBox(mainRef);
   const gap = box.width > 1800 ? 20 : box.width > 900 ? 14 : 8;
@@ -266,9 +362,12 @@ function Grid({ board }) {
           data-rows={fit.rows}
           data-scroll={fit.scroll}
         >
-          {board.players.map((p) => (
-            <Tile key={p.id} player={p} ended={ended} />
-          ))}
+          {board.players.map((p) => {
+            // Which tile is in its moment: the one leaving, or the survivors at the finale.
+            const moment =
+              active && (active.id === p.id || (active.kind === "finale" && ended && p.status === "active")) ? active : null;
+            return <Tile key={p.id} player={p} ended={ended} moment={moment} />;
+          })}
         </ul>
       )}
     </main>
@@ -276,8 +375,11 @@ function Grid({ board }) {
 }
 
 export function Board({ gameId }) {
-  const { board, missing, failed, live } = useBoard(gameId);
+  const { board, missing, failed, live, feed } = useBoard(gameId);
   const fullscreen = useFullscreen();
+  const { pending, active } = useMoments(feed);
+  const sound = getBoardSound();
+  const soundControls = useSoundControls(sound);
   useEffect(() => {
     if (board?.name) document.title = `${board.name} · Elimin8 board`;
     return () => {
@@ -301,27 +403,35 @@ export function Board({ gameId }) {
       </div>
     );
   }
+  // What the screen shows: a player whose moment hasn't started yet still looks
+  // active, and the ended state waits for the winner flourish.
+  const players = board.players.map((p) => (pending.ids[p.id] ? { ...p, status: "active" } : p));
+  const ended = board.status === "ended" && !pending.finale;
+  const view = { ...board, players, status: board.status === "ended" && !ended ? "active" : board.status };
+  const shownActive = players.filter((p) => p.status === "active").length;
   return (
-    <div className="board" data-state={board.status}>
+    <div className="board" data-state={view.status}>
       <header className="board-header">
         <div className="board-title">
           <span className="board-brand">elimin<b>8</b></span>
           <h1>{board.name}</h1>
         </div>
         <div className="board-stats">
-          {board.status !== "lobby" && (
+          {view.status !== "lobby" && (
             <div className="board-stat board-count">
-              <span>{board.status === "ended" ? "Survivors" : "Active"}</span>
-              <strong data-testid="board-active">
-                {board.activeCount}
-                <small> / {board.players.length}</small>
+              <span>{view.status === "ended" ? "Survivors" : "Active"}</span>
+              {/* Re-keyed on every change so the count visibly ticks down during a moment. */}
+              <strong key={shownActive} className={active ? "tick" : undefined} data-testid="board-active">
+                {shownActive}
+                <small> / {players.length}</small>
               </strong>
             </div>
           )}
-          <BoardTimer board={board} />
+          <BoardTimer board={view} />
         </div>
         <div className="board-tools">
           <LiveBadge live={live} failed={failed} />
+          {soundControls.toggle}
           {fullscreen.supported && (
             <button className="secondary" onClick={fullscreen.toggle}>
               {fullscreen.active ? "Exit fullscreen" : "Fullscreen"}
@@ -329,8 +439,9 @@ export function Board({ gameId }) {
           )}
         </div>
       </header>
-      {board.status === "ended" && <EndedBanner board={board} />}
-      <Grid board={board} />
+      {soundControls.gate}
+      {view.status === "ended" && <EndedBanner board={view} />}
+      <Grid board={view} active={active} />
     </div>
   );
 }

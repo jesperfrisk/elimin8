@@ -271,15 +271,20 @@
 .tile.eliminated .tile-status {
   color: var(--eliminated);
 }
+.tile.eliminated .tile-art::before,
 .tile.eliminated .tile-art::after {
   --x: clamp(3px, calc(var(--tile) * 0.022), 10px);
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 1; /* above .tile-face, which would otherwise cover the earlier ::before stroke */
   pointer-events: none;
-  background:
-    linear-gradient(to top right, transparent calc(50% - var(--x)), var(--eliminated) calc(50% - var(--x)), var(--eliminated) calc(50% + var(--x)), transparent calc(50% + var(--x))),
-    linear-gradient(to bottom right, transparent calc(50% - var(--x)), var(--eliminated) calc(50% - var(--x)), var(--eliminated) calc(50% + var(--x)), transparent calc(50% + var(--x)));
+}
+.tile.eliminated .tile-art::after {
+  background: linear-gradient(to top right, transparent calc(50% - var(--x)), var(--eliminated) calc(50% - var(--x)), var(--eliminated) calc(50% + var(--x)), transparent calc(50% + var(--x)));
+}
+.tile.eliminated .tile-art::before {
+  background: linear-gradient(to bottom right, transparent calc(50% - var(--x)), var(--eliminated) calc(50% - var(--x)), var(--eliminated) calc(50% + var(--x)), transparent calc(50% + var(--x)));
 }
 
 /* ---------- withdrawn: grey and dashed, never a red X ---------- */
@@ -363,5 +368,236 @@
 @keyframes board-blink {
   50% {
     opacity: 0.25;
+  }
+}
+
+/* ---------- sound gate ---------- */
+.board-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: clamp(0.5rem, 1vw, 1rem);
+  background: rgba(197, 244, 120, 0.1);
+  border-bottom: 1px solid rgba(197, 244, 120, 0.4);
+}
+.board-gate-button {
+  font-size: clamp(1rem, 1.8vw, 2.2rem);
+  padding: 0.6em 1.6em;
+}
+
+/* ---------- the elimination moment (live changes only) ----------
+   Only a live update plays a moment: never the first load, a reconnect or a
+   wake-up. --moment is the planned duration in ms (shorter in a burst). The
+   end state of every animation equals the static state above, so when the
+   moment's class is removed nothing jumps. */
+@media (prefers-reduced-motion: no-preference) {
+  .tile.moment-eliminated {
+    z-index: 1;
+    animation:
+      moment-shake var(--moment) ease-out both,
+      moment-border var(--moment) linear both;
+  }
+  .tile.moment-eliminated::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background: var(--eliminated);
+    animation: moment-flash var(--moment) ease-out both;
+  }
+  .tile.moment-eliminated .tile-face {
+    animation: moment-dim var(--moment) ease-in both;
+  }
+  .tile.moment-eliminated .tile-art::after {
+    animation: moment-stroke var(--moment) ease-out both;
+  }
+  .tile.moment-eliminated .tile-art::before {
+    animation: moment-stroke-late var(--moment) ease-out both;
+  }
+  .board-count strong.tick {
+    display: inline-block;
+    transform-origin: right center;
+    animation: count-tick 0.7s ease-out both;
+  }
+  /* Quieter: the picture fades to grey and the border turns dashed, no flash or shake. */
+  .tile.moment-withdrawn .tile-face {
+    animation: moment-dim-soft var(--moment) ease-in-out both;
+  }
+  .tile.moment-withdrawn {
+    animation: moment-border-soft var(--moment) ease-in-out both;
+  }
+  /* End of the game: a light sweep and gold glow on the survivors. */
+  .tile.moment-finale {
+    z-index: 1;
+    animation: finale-glow var(--moment) ease-in-out both;
+  }
+  .tile.moment-finale::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.6) 50%, transparent 70%);
+    animation: finale-sweep var(--moment) ease-in-out both;
+  }
+  .board-ended {
+    animation: board-fade-in 0.8s ease-out both;
+  }
+}
+/* Reduced motion: no flash, shake or sweep, just a simple fade into the new state. */
+@media (prefers-reduced-motion: reduce) {
+  .tile.moment-eliminated,
+  .tile.moment-withdrawn,
+  .tile.moment-finale {
+    animation: moment-fade var(--moment) ease-in-out both;
+  }
+}
+@keyframes moment-fade {
+  0% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes moment-shake {
+  0% {
+    transform: translate(0);
+  }
+  5% {
+    transform: translate(calc(var(--tile) * -0.025), calc(var(--tile) * 0.012)) rotate(-1.2deg);
+  }
+  10% {
+    transform: translate(calc(var(--tile) * 0.03), calc(var(--tile) * -0.012)) rotate(1.2deg);
+  }
+  16% {
+    transform: translate(calc(var(--tile) * -0.025), calc(var(--tile) * -0.01)) rotate(-0.8deg);
+  }
+  22% {
+    transform: translate(calc(var(--tile) * 0.018), calc(var(--tile) * 0.012)) rotate(0.6deg);
+  }
+  30% {
+    transform: translate(calc(var(--tile) * -0.01), 0) rotate(-0.3deg);
+  }
+  38%,
+  100% {
+    transform: translate(0);
+  }
+}
+@keyframes moment-flash {
+  0% {
+    opacity: 0.85;
+  }
+  12% {
+    opacity: 0.45;
+  }
+  26% {
+    opacity: 0.7;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes moment-dim {
+  0%,
+  25% {
+    filter: none;
+  }
+  75%,
+  100% {
+    filter: grayscale(1) brightness(0.55);
+  }
+}
+@keyframes moment-border {
+  0%,
+  20% {
+    border-color: var(--accent);
+    box-shadow: 0 0 calc(var(--tile) * 0.18) rgba(197, 244, 120, 0.5);
+  }
+  60%,
+  100% {
+    border-color: var(--eliminated);
+    box-shadow: none;
+  }
+}
+@keyframes moment-stroke {
+  0%,
+  10% {
+    clip-path: inset(0 100% 0 0);
+  }
+  45%,
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes moment-stroke-late {
+  0%,
+  40% {
+    clip-path: inset(0 100% 0 0);
+  }
+  72%,
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes count-tick {
+  0% {
+    transform: scale(1.4);
+    color: var(--eliminated);
+  }
+  100% {
+    transform: scale(1);
+    color: var(--accent);
+  }
+}
+@keyframes moment-dim-soft {
+  0% {
+    filter: none;
+  }
+  100% {
+    filter: grayscale(1) brightness(0.75);
+  }
+}
+@keyframes moment-border-soft {
+  0% {
+    border-style: solid;
+    border-color: var(--accent);
+  }
+  100% {
+    border-style: dashed;
+    border-color: var(--board-grey);
+  }
+}
+@keyframes finale-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  70%,
+  100% {
+    transform: translateX(110%);
+  }
+}
+@keyframes finale-glow {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.05);
+    border-color: #ffd27a;
+    box-shadow: 0 0 calc(var(--tile) * 0.35) rgba(255, 210, 122, 0.85);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes board-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
   }
 }
