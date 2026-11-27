@@ -146,13 +146,88 @@ func TestTeamGameContinuesWhileNoTeamHoldsAMajority(t *testing.T) {
 	}
 }
 
-func TestTeamLastPlayerStandingStillWins(t *testing.T) {
-	// A single survivor wins as a player even in team mode.
-	s, _, load, a := teamGame(t, []string{"A", "B"})
+// assertSingletonTeamWin checks a team-mode game that ended with one player
+// left: the surviving player's team wins, consistently in the persisted state,
+// every role's view and the final result.
+func assertSingletonTeamWin(t *testing.T, g *models.Game, organizer models.Access, a []models.Access, teamID, teamName string) {
+	t.Helper()
+	if g.Status != "ended" || g.EndedAt == nil || g.EndReason != "survival" || g.WinnerKind != "team" || g.WinnerID != teamID {
+		t.Fatalf("team %s should win: status=%s kind=%q id=%q reason=%q", teamID, g.Status, g.WinnerKind, g.WinnerID, g.EndReason)
+	}
+	for _, p := range g.Players {
+		if p.VictimID != "" || p.Mission != "" {
+			t.Fatalf("assignments must be cleared when the game ends: %+v", p)
+		}
+	}
+	for _, actor := range append(append([]models.Access{}, a...), organizer) {
+		view := services.View(g, actor)
+		if view.Winner == nil || *view.Winner != (models.WinnerView{Kind: "team", ID: teamID, Name: teamName}) {
+			t.Fatalf("winner view = %+v", view.Winner)
+		}
+		if view.WinnerID != "" {
+			t.Fatalf("winnerId is for player winners only, got %q", view.WinnerID)
+		}
+	}
+	result, err := services.ResultOf(g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Reason != "survival" || result.Tie || len(result.Winners) != 1 || result.Winners[0] != (models.ResultWinner{Kind: "team", ID: teamID, Name: teamName}) {
+		t.Fatalf("result winners = %+v", result)
+	}
+	for _, st := range result.Standings {
+		if st.Kind != "team" {
+			t.Fatalf("standings must use the same kind as the winner: %+v", result.Standings)
+		}
+	}
+}
+
+func TestTeamLastPlayerStandingWinsForTheirTeamByWithdrawal(t *testing.T) {
+	// Two one-player teams: a confirmed withdrawal leaves one survivor, and the
+	// winner is their team, not the player.
+	s, organizer, load, a := teamGame(t, []string{"A", "B"})
 	withdraw(t, s, a[1])
+	assertSingletonTeamWin(t, load(), organizer, a, "A", "Team A")
+}
+
+func TestTeamLastPlayerStandingWinsForTheirTeamByElimination(t *testing.T) {
+	s, organizer, load, a := teamGame(t, []string{"A", "B"})
+	confirmKill(t, s, a[0], a[1], "1")
+	assertSingletonTeamWin(t, load(), organizer, a, "A", "Team A")
+}
+
+func TestTeamSingletonTeamsPlayOnUntilOneTeamIsLeft(t *testing.T) {
+	// Three one-player teams: two survivors on different teams is still a valid
+	// circle, so the game continues until a single team remains.
+	s, organizer, load, a := teamGame(t, []string{"A", "B", "C"}) // 0 -> 1 -> 2 -> 0
+	confirmKill(t, s, a[0], a[1], "1")
 	g := load()
-	if g.Status != "ended" || g.WinnerKind != "player" || g.WinnerID != "0" {
-		t.Fatalf("last player should win: %+v", g)
+	if g.Status != "active" || g.WinnerID != "" || g.WinnerKind != "" {
+		t.Fatalf("game ended with two teams left: %+v", g)
+	}
+	assertCircle(t, g)
+	confirmKill(t, s, a[0], a[2], "2")
+	assertSingletonTeamWin(t, load(), organizer, a, "A", "Team A")
+}
+
+func TestTeamLastPlayerWinnerIsNotLeakedBeforeTheEnd(t *testing.T) {
+	s, organizer, load, a := teamGame(t, []string{"A", "B", "C"})
+	confirmKill(t, s, a[0], a[1], "1")
+	g := load()
+	for _, actor := range append(append([]models.Access{}, a...), organizer) {
+		raw := rawView(t, g, actor)
+		if v, present := raw["winner"]; !present || v != nil {
+			t.Fatalf("winner must be null before the end: %v", v)
+		}
+		if raw["endReason"] != nil || raw["winnerId"] != nil {
+			t.Fatalf("end state leaked mid-game: %v %v", raw["endReason"], raw["winnerId"])
+		}
+	}
+	// Players never see another team, and organizers-only data stays organizer-only.
+	for i := range a {
+		if rawView(t, g, a[i])["teams"] != nil {
+			t.Fatalf("player %d received team setup", i)
+		}
 	}
 }
 
