@@ -77,3 +77,67 @@ for (const mode of ["elimination", "withdrawal", "mixed"]) {
     }
   });
 }
+
+// Two one-player teams: when one player is left, their TEAM wins, consistently
+// in the game view and the final result, and nothing about teams leaks earlier.
+for (const path of ["elimination", "withdrawal"]) {
+  test(`a lone survivor wins for their team after a confirmed ${path}`, async ({ request }) => {
+    const owner = await (await request.post("/api/games", { data: { name: `Singleton teams ${path} ${Date.now()}` } })).json();
+    const base = `/api/games/${owner.game.id}`;
+    const auth = a => ({ Authorization: `Bearer ${a.token}` });
+    const headers = auth(owner);
+    const get = async a => (await request.get(base, { headers: auth(a) })).json();
+    try {
+      const roster = await (await request.post(`${base}/players`, { headers, data: { names: ["Alice", "Bob"] } })).json();
+      const players = [];
+      for (const p of roster.players) {
+        const response = await request.post("/api/access", { data: { invitationCode: owner.game.invitationCode, code: p.code, role: "player" } });
+        expect(response.ok()).toBe(true);
+        players.push(await response.json());
+      }
+      const [aliceAccess, bobAccess] = players;
+      expect((await request.post(`${base}/missions`, { headers, data: { texts: ["Shake hands"] } })).ok()).toBe(true);
+      expect((await request.patch(`${base}/settings`, { headers, data: { mode: "team" } })).ok()).toBe(true);
+      const teams = [
+        { name: "Red Rockets", playerIds: [aliceAccess.game.me.id] },
+        { name: "Blue Bandits", playerIds: [bobAccess.game.me.id] },
+      ];
+      expect((await request.put(`${base}/teams`, { headers, data: { teams } })).ok()).toBe(true);
+      expect((await request.post(`${base}/start`, { headers })).ok()).toBe(true);
+
+      // Before the end: no winner and no other team's name in any player response.
+      for (const a of [aliceAccess, bobAccess]) {
+        const view = await get(a);
+        expect(view.winner ?? null).toBeNull();
+        expect(view.teams).toBeUndefined();
+        expect(JSON.stringify(view)).not.toContain(a === aliceAccess ? "Blue Bandits" : "Red Rockets");
+      }
+
+      if (path === "elimination") {
+        const claim = await (await request.post(`${base}/eliminations`, { headers: auth(aliceAccess), data: { victimId: bobAccess.game.me.id } })).json();
+        expect((await request.post(`${base}/eliminations/${claim.id}/response`, { headers: auth(bobAccess), data: { accept: true } })).ok()).toBe(true);
+      } else {
+        const pending = await (await request.post(`${base}/withdrawals`, { headers: auth(bobAccess) })).json();
+        expect((await request.post(`${base}/withdrawals/confirm`, { headers: auth(bobAccess), data: { withdrawalToken: pending.withdrawalToken } })).status()).toBe(204);
+      }
+
+      const ended = await get(owner);
+      expect(ended.status).toBe("ended");
+      expect(ended.winner).toEqual({ kind: "team", id: expect.any(String), name: "Red Rockets" });
+      for (const a of [aliceAccess, bobAccess]) {
+        const view = await get(a);
+        expect(view.winner).toEqual(ended.winner);
+        expect(view.winnerId).toBeUndefined();
+        expect(view.me.victim).toBeUndefined();
+      }
+      const result = await (await request.get(`${base}/result`, { headers: auth(bobAccess) })).json();
+      expect(result.reason).toBe("survival");
+      expect(result.tie).toBe(false);
+      expect(result.winners).toEqual([{ kind: "team", id: ended.winner.id, name: "Red Rockets" }]);
+      for (const standing of result.standings) expect(standing.kind).toBe("team");
+    } finally {
+      const state = await get(owner);
+      if (state.status !== "ended") await request.post(`${base}/end`, { headers });
+    }
+  });
+}
