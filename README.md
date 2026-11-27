@@ -274,7 +274,7 @@ The application must enforce different visibility levels for game information.
 | Killer identities         | No     | Yes       | No                |
 | Remaining time            | Yes    | Yes       | Yes               |
 
-A *board link viewer* is anyone who opens the public board link (`#/board/<gameId>`). They need no account and can only read names, status, the active count and the timer.
+A *board link viewer* is anyone who opens the public board link (`#/board/<gameId>`), the full-screen live board for a TV or phone; organizers and joined players can copy the link from their game view. They need no account and can only read names, status, the active count and the timer.
 
 All participants can see the public Kill Board, but it must not reveal any secret relationships.
 
