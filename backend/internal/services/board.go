@@ -82,7 +82,7 @@ func BuildBoard(g *models.Game, now time.Time) models.BoardView {
 		if status == models.KillBoardActive {
 			v.ActiveCount++
 		}
-		v.Players = append(v.Players, models.BoardPlayer{ID: p.ID, Number: number, Name: p.Name, Status: status})
+		v.Players = append(v.Players, models.BoardPlayer{ID: p.ID, Number: number, Name: p.Name, Status: status, PhotoURL: PhotoURL(g.ID, p.PhotoID)})
 	}
 	sort.Slice(v.Players, func(i, j int) bool { return v.Players[i].Number < v.Players[j].Number })
 	return v
