@@ -31,9 +31,10 @@ func TestAuditTeammateVictims(t *testing.T) {
 			for _, p := range living {
 				counts[p.TeamID]++
 			}
-			lastPlayerWon := len(living) == 1 && g.WinnerKind == winnerPlayer && living[g.WinnerID] != nil
-			if !lastPlayerWon && (g.WinnerKind != winnerTeam || counts[g.WinnerID]*2 <= len(living)) {
-				t.Fatalf("%s: game ended without an unbeatable winning team", context)
+			// Team mode always ends with a winning team, even when a single player
+			// is left: that player's team holds all of the remaining players.
+			if g.WinnerKind != winnerTeam || counts[g.WinnerID]*2 <= len(living) {
+				t.Fatalf("%s: game ended without an unbeatable winning team (kind=%q id=%q)", context, g.WinnerKind, g.WinnerID)
 			}
 			for _, p := range living {
 				if p.VictimID != "" {
