@@ -92,7 +92,9 @@ func run() error {
 	defer stopOutbox()
 	go broker.RunOutbox(outboxCtx, gameRepo)
 	go gameService.RunTimerSweep(outboxCtx, 5*time.Second)
-	controllers.NewGameController(gameService).Register(mux)
+	games := controllers.NewGameController(gameService)
+	games.SetRateLimit(cfg.LoginRateLimit)
+	games.Register(mux)
 	if photoStore != nil {
 		photos := services.NewPhotoService(gameService, photoStore)
 		photos.Retention = photoRetention

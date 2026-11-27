@@ -23,10 +23,11 @@ type GameController struct {
 	service  *services.GameService
 	mu       sync.Mutex
 	attempts map[string]attemptWindow
+	limit    int // attempts per remote address and endpoint each minute
 }
 
 func NewGameController(s *services.GameService) *GameController {
-	return &GameController{service: s, attempts: map[string]attemptWindow{}}
+	return &GameController{service: s, attempts: map[string]attemptWindow{}, limit: DefaultLoginRateLimit}
 }
 
 // Register wires every domain's routes. To add a domain, create
@@ -115,7 +116,7 @@ func decodeGame(w http.ResponseWriter, r *http.Request, v any) bool {
 
 // Bound both expensive code hashing and anonymous game creation. RemoteAddr is
 // deliberately not replaced with untrusted forwarding headers.
-func (c *GameController) allow(r *http.Request) bool { return c.allowN(r, r.URL.Path, 30) }
+func (c *GameController) allow(r *http.Request) bool { return c.allowN(r, r.URL.Path, 0) }
 
 // allowN is allow with an explicit bucket name and per-minute limit.
 func (c *GameController) allowN(r *http.Request, bucket string, limit int) bool {
@@ -123,6 +124,9 @@ func (c *GameController) allowN(r *http.Request, bucket string, limit int) bool 
 	key := host + ":" + bucket
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if limit == 0 {
+		limit = c.limit
+	}
 	now := time.Now()
 	for k, v := range c.attempts {
 		if now.After(v.until) {
@@ -161,4 +165,18 @@ func (c *GameController) authorized(w http.ResponseWriter, r *http.Request) (mod
 		return a, nil, false
 	}
 	return a, g, true
+}
+
+// DefaultLoginRateLimit is the protected per-minute attempt allowance.
+const DefaultLoginRateLimit = 30
+
+// SetRateLimit overrides the per-minute attempt allowance, for isolated test
+// stacks. Values outside [1, 600] are ignored so the limiter stays bounded.
+func (c *GameController) SetRateLimit(perMinute int) {
+	if perMinute < 1 || perMinute > 600 {
+		return
+	}
+	c.mu.Lock()
+	c.limit = perMinute
+	c.mu.Unlock()
 }

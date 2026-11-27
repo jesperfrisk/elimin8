@@ -1,0 +1,10 @@
+# Test-only override for the browser suite. Every Playwright fixture logs in
+# through one Nginx address, so the suite's legitimate logins would otherwise
+# exceed the default of 30 attempts per minute. Never use this for a shared or
+# public deployment. The limiter stays on, and its value is bounded to 600.
+#
+#   docker compose -p elimin8-e2e -f compose.yaml -f compose.e2e.yaml up --build --wait -d
+services:
+  backend:
+    environment:
+      LOGIN_RATE_LIMIT_PER_MINUTE: "600"

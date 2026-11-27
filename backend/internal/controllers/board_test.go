@@ -13,7 +13,7 @@ import (
 	"github.com/jesperfrisk/elimin8/backend/internal/testutil"
 )
 
-func boardServer(t *testing.T, status string) (*http.ServeMux, string) {
+func boardServer(t *testing.T, status string, limits ...int) (*http.ServeMux, string) {
 	t.Helper()
 	repo := testutil.NewMemory()
 	now := time.Now().UTC()
@@ -26,8 +26,34 @@ func boardServer(t *testing.T, status string) (*http.ServeMux, string) {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	NewGameController(services.NewGameService(repo)).Register(mux)
+	controller := NewGameController(services.NewGameService(repo))
+	if len(limits) > 0 {
+		controller.SetRateLimit(limits[0])
+	}
+	controller.Register(mux)
 	return mux, g.ID
+}
+
+func TestConfiguredLoginLimitDoesNotChangeBoardBudget(t *testing.T) {
+	mux, id := boardServer(t, "active", 1)
+	for i, want := range []int{400, 429} {
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, httptest.NewRequest("POST", "/api/access", nil))
+		if w.Code != want {
+			t.Fatalf("login attempt %d: got %d, want %d", i+1, w.Code, want)
+		}
+	}
+	for i := 0; i <= boardRequestsPerMinute; i++ {
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, httptest.NewRequest("GET", "/api/board/"+id, nil))
+		want := 200
+		if i == boardRequestsPerMinute {
+			want = 429
+		}
+		if w.Code != want {
+			t.Fatalf("board request %d with login limit 1: got %d, want %d", i+1, w.Code, want)
+		}
+	}
 }
 
 func TestBoardEndpointIsPublicWithSameShapeInEveryState(t *testing.T) {
