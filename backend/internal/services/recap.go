@@ -32,11 +32,12 @@ func RecapOf(g *models.Game) (*models.Recap, error) {
 		return 0
 	}
 
-	recap := &models.Recap{Timeline: []models.RecapEvent{}}
+	recap := &models.Recap{Timeline: []models.RecapEvent{}, Winners: []models.ResultWinner{}}
 	sum := &recap.Summary
 	sum.DurationSeconds = secs(end)
 
 	if g.Result != nil {
+		recap.Winners = append(recap.Winners, g.Result.Winners...)
 		sum.Reason, sum.Tie = g.Result.Reason, g.Result.Tie
 		recap.Leaderboard = append([]models.ResultStanding{}, g.Result.Standings...)
 	} else {
@@ -52,6 +53,7 @@ func RecapOf(g *models.Game) (*models.Recap, error) {
 			recap.Leaderboard = finalStandings(g)
 		} else {
 			r := buildResult(g, sum.Reason)
+			recap.Winners = append(recap.Winners, r.Winners...)
 			sum.Tie, recap.Leaderboard = r.Tie, r.Standings
 		}
 	}

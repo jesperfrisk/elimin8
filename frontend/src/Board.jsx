@@ -5,6 +5,7 @@ import { formatRemaining, useCountdown } from "./Timer";
 import { fitGrid, avatarHue, statusLabel } from "./boardLayout";
 import { diffNewlyOut, momentDuration, advanceRun, EMPTY_RUN } from "./boardMotion";
 import { getBoardSound } from "./boardSound";
+import { RecapView, useRecap } from "./Recap";
 import { PlayerAvatar } from "./PlayerAvatar";
 import "./board.css";
 
@@ -323,7 +324,7 @@ function Tile({ player, ended, moment }) {
   );
 }
 
-// Slot for the post-game recap (ticket #42 replaces the body of this banner).
+// Compact fallback shown until the recap loads (or if it cannot).
 function EndedBanner({ board }) {
   const survivors = board.players.filter((p) => p.status === "active").length;
   return (
@@ -381,6 +382,9 @@ export function Board({ gameId }) {
   const { pending, active } = useMoments(feed);
   const sound = getBoardSound();
   const soundControls = useSoundControls(sound);
+  // The recap waits for the winner flourish, like the rest of the ended state.
+  const { recap } = useRecap(`/api/board/${gameId}/recap`, undefined, board?.status === "ended" && !pending.finale);
+  const [showPlayers, setShowPlayers] = useState(false);
   useEffect(() => {
     if (board?.name) document.title = `${board.name} · Elimin8 board`;
     return () => {
@@ -442,7 +446,20 @@ export function Board({ gameId }) {
       </header>
       {soundControls.gate}
       {view.status === "ended" && <EndedBanner board={view} />}
-      <Grid board={view} active={active} />
+      {view.status === "ended" && recap && (
+        <div className="board-recap-toggle">
+          <button className="secondary" onClick={() => setShowPlayers((v) => !v)} aria-pressed={showPlayers}>
+            {showPlayers ? "Show recap" : "Show players"}
+          </button>
+        </div>
+      )}
+      {view.status === "ended" && recap && !showPlayers ? (
+        <main className="board-recap">
+          <RecapView recap={recap} variant="board" />
+        </main>
+      ) : (
+        <Grid board={view} active={active} />
+      )}
     </div>
   );
 }

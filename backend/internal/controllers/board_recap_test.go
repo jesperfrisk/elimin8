@@ -98,9 +98,22 @@ func TestBoardRecapIsPublicExactShapeAndLeaksNothing(t *testing.T) {
 		if err := json.Unmarshal(w.Body.Bytes(), &top); err != nil {
 			t.Fatal(err)
 		}
-		assertKeys(t, kind+" top", w.Body.Bytes(), "summary", "leaderboard", "timeline", "awards")
+		assertKeys(t, kind+" top", w.Body.Bytes(), "summary", "leaderboard", "timeline", "awards", "winners")
 		assertKeys(t, kind+" summary", top["summary"], "durationSeconds", "players", "eliminations", "withdrawals", "declinedReports", "reason", "tie")
 		assertKeys(t, kind+" awards", top["awards"], "longestSurvivor", "firstElimination", "fastestElimination", "mostKills", "lastElimination")
+		var winners []json.RawMessage
+		if err := json.Unmarshal(top["winners"], &winners); err != nil {
+			t.Fatal(err)
+		}
+		for _, row := range winners {
+			assertKeys(t, kind+" winner", row, "kind", "id", "name")
+		}
+		if kind == "zero" && len(winners) != 3 {
+			t.Fatalf("zero-score timer winners = %s", top["winners"])
+		}
+		if kind == "organizer" && string(top["winners"]) != "[]" {
+			t.Fatalf("organizer winners = %s", top["winners"])
+		}
 		var board, tl []json.RawMessage
 		_ = json.Unmarshal(top["leaderboard"], &board)
 		for _, row := range board {

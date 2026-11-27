@@ -40,6 +40,7 @@ type RecapAwards struct {
 // Recap is the response of GET /api/games/{id}/recap, available once the game
 // has ended.
 type Recap struct {
+	Winners     []ResultWinner   `json:"winners"`
 	Summary     RecapSummary     `json:"summary"`
 	Leaderboard []ResultStanding `json:"leaderboard"`
 	Timeline    []RecapEvent     `json:"timeline"`
