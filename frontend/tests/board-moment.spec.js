@@ -68,6 +68,72 @@ test("momentDuration: full for the first three, then half, then a snap, within a
   expect(play(["eliminated", "withdrawn", "finale"], true).every((ms) => ms <= 800)).toBe(true);
 });
 
+// A strict fake AudioContext: it rejects the calls a real one would throw on or ignore
+// (exponential ramps to zero or negative, ramps in the past, stop before start, ...),
+// so a mistake in the tone scheduling can't hide behind play()'s error handling.
+function strictContext() {
+  const ctx = { currentTime: 1, state: "running", destination: { kind: "destination" }, oscillators: [], gains: [] };
+  const check = (cond, message) => {
+    if (!cond) throw new Error(message);
+  };
+  const param = (name) => ({
+    value: 0,
+    setValueAtTime(v, t) {
+      check(Number.isFinite(v) && Number.isFinite(t) && t >= ctx.currentTime, `${name}.setValueAtTime(${v}, ${t})`);
+    },
+    exponentialRampToValueAtTime(v, t) {
+      check(v > 0 && Number.isFinite(v) && Number.isFinite(t) && t >= ctx.currentTime, `${name}.exponentialRampToValueAtTime(${v}, ${t})`);
+    },
+  });
+  ctx.createGain = () => {
+    const node = { gain: param("gain"), connect(target) { check(target, "gain.connect(undefined)"); } };
+    ctx.gains.push(node);
+    return node;
+  };
+  ctx.createOscillator = () => {
+    const node = {
+      type: "",
+      frequency: param("frequency"),
+      started: null,
+      stopped: null,
+      connect(target) {
+        check(target, "oscillator.connect(undefined)");
+      },
+      start(t) {
+        check(node.started === null && t >= ctx.currentTime, `oscillator.start(${t})`);
+        node.started = t;
+      },
+      stop(t) {
+        check(node.started !== null && t > node.started, `oscillator.stop(${t}) before start`);
+        node.stopped = t;
+      },
+    };
+    ctx.oscillators.push(node);
+    return node;
+  };
+  return ctx;
+}
+
+test("the synthesized tones schedule valid Web Audio automation", async () => {
+  const { synth } = await import("../src/boardSound.js");
+  const gong = strictContext();
+  synth.elimination(gong);
+  expect(gong.oscillators).toHaveLength(5);
+  const winner = strictContext();
+  synth.winner(winner);
+  expect(winner.oscillators).toHaveLength(4);
+  const blip = strictContext();
+  synth.enable(blip);
+  expect(blip.oscillators).toHaveLength(1);
+  for (const ctx of [gong, winner, blip]) {
+    for (const osc of ctx.oscillators) {
+      expect(osc.started).not.toBeNull();
+      expect(osc.stopped).toBeGreaterThan(osc.started);
+      expect(osc.stopped - ctx.currentTime).toBeLessThan(2); // short: nothing rings for long
+    }
+  }
+});
+
 // ---- The board in a browser with the API, the MQTT broker and audio stubbed. ----
 
 const players = (n) => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, number: i + 1, name: `Player ${i}`, status: "active" }));
