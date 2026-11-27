@@ -24,7 +24,7 @@ rules and the [CHANGELOG](CHANGELOG.md) for what has shipped.
 
 ## Phase 2: Improved Experience
 
-- [ ] Live game dashboard
+- [ ] Live game dashboard (partly delivered: public board API #36 and board UI #39; elimination animation and sound #40 and photos on tiles #41 remain)
 - [ ] Advanced post-game statistics
 
 ## Phase 3: Frictionless Joining and Richer Play

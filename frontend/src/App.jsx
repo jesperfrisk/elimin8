@@ -4,6 +4,7 @@ import { Home } from "./Home";
 import { OrganizerHome } from "./OrganizerHome";
 import { PlayerHome } from "./PlayerHome";
 import { GamePage } from "./GamePage";
+import { Board } from "./Board";
 
 function useRoute() {
   const [route, setRoute] = useState(location.hash.slice(1) || "/");
@@ -46,6 +47,8 @@ export function App() {
   const role = parts[0];
   const gameId = parts[1];
   const access = saved.find((a) => a.role === role && a.game.id === gameId);
+  // The public live board is full-screen and needs no login or app chrome.
+  if (role === "board" && gameId) return <Board key={gameId} gameId={gameId} />;
   return (
     <>
       <header className="topbar">
