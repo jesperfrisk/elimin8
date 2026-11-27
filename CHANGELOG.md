@@ -58,6 +58,19 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
+- Public live board UI (#39): `#/board/<gameId>` is a full-screen, read-only
+  wall display for a TV or phone, with no login and no app chrome. It reads
+  only the public board endpoint and subscribes anonymously to the board
+  topic (one refetch per `board.updated`, no polling, a visible
+  "Reconnecting…" state). Each player is a poster tile showing their picture
+  (initials for now) with their name and a text status; display numbers are
+  not shown. Active tiles glow, eliminated tiles are dimmed with a red X,
+  withdrawn tiles are grey and dashed. Tiles are sized to fit the screen from
+  2 to about 100 players without scrolling on a TV. Includes lobby, active and
+  ended ("Game over", survivors tagged) states, a friendly 404 screen, a
+  fullscreen button, and a copy-board-link button in the organizer and player
+  game views. The elimination animation and sound (#40) and photos on tiles
+  (#41) are separate tickets.
 - Optional player photos, delivered as three backend slices of #37 (the photo
   UI, #41, has not shipped yet):
   - Private local RustFS object storage in Compose and an S3 adapter (#53).

@@ -11,19 +11,23 @@ export function formatRemaining(totalSeconds) {
   return d > 0 ? `${d}d ${clock}` : clock;
 }
 
-function Countdown({ game }) {
-  // The server supplies remaining time; anchor it to the local clock so
-  // client clock skew cannot distort the display.
-  const [deadline, setDeadline] = useState(() => Date.now() + (game.remainingSeconds || 0) * 1000);
+// The server supplies remaining time; anchor it to the local clock so client
+// clock skew cannot distort the display. Shared with the live board.
+export function useCountdown(remainingSeconds, resetKey) {
+  const [deadline, setDeadline] = useState(() => Date.now() + (remainingSeconds || 0) * 1000);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    setDeadline(Date.now() + (game.remainingSeconds || 0) * 1000);
-  }, [game.revision, game.remainingSeconds]);
+    setDeadline(Date.now() + (remainingSeconds || 0) * 1000);
+  }, [resetKey, remainingSeconds]);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
-  const left = Math.max(0, (deadline - now) / 1000);
+  return Math.max(0, (deadline - now) / 1000);
+}
+
+function Countdown({ game }) {
+  const left = useCountdown(game.remainingSeconds, game.revision);
   return (
     <section className="panel timer" aria-label="Game timer">
       <h2>Time remaining</h2>

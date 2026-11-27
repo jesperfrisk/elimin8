@@ -173,7 +173,7 @@ Deployments: Compose sets `TRUSTED_PROXIES` to `172.16.0.0/12,192.168.0.0/16` (D
 
 ## Public board
 
-`GET /api/board/{gameId}` and the MQTT topic `boards/{gameId}/updates` implement anonymous read-only board access. The link is the game id only: anyone holding it can read the public payload, and it grants no ability to join or act. The `#/board/<gameId>` frontend is still pending #39; unauthenticated recap access is pending #42. The authenticated in-game Kill Board remains a separate, narrower API, and the authenticated game view includes elimination timestamps in its shared participant list.
+`GET /api/board/{gameId}` and the MQTT topic `boards/{gameId}/updates` implement anonymous read-only board access. The link is the game id only: anyone holding it can read the public payload, and it grants no ability to join or act. The `#/board/<gameId>` frontend is implemented (#39); unauthenticated recap access is pending #42. The authenticated in-game Kill Board remains a separate, narrower API, and the authenticated game view includes elimination timestamps in its shared participant list.
 
 - **Payload:** names, ids, a stable display `number`, status, `activeCount`, game status and the timer. Never missions, targets, hunters, teams, kill counts, killers or codes (tests assert the exact JSON keys in lobby, active and ended states). Players are ordered by display number, so order never reveals who was eliminated or withdrew first. The recap is a separate later field, available only after the game ends.
 - **Display number:** assigned when the organizer adds a player (`Player.Number`), persisted and never reused (players are never removed). Games created before this existed fall back to the player's roster position, which is equally stable.

@@ -114,6 +114,11 @@ export function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
           </strong>
         </div>
       </div>
+      <div className="board-link">
+        <span>Show this game on a TV:</span>
+        <a href={`#/board/${game.id}`} target="_blank" rel="noreferrer">Open the live board ↗</a>
+        <CopyButton text={`${location.origin}/#/board/${game.id}`} label="Copy board link" />
+      </div>
       {organizer ? (
         <OrganizerView
           game={game}

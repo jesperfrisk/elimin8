@@ -58,7 +58,7 @@ Starting requires at least two joined players and one enabled mission. Each part
 
 Confirmed kills stay server-side during play, including for organizers. After survival or timer expiry, the server stores final winners and confirmed-kill standings once; game views themselves never include kill totals. After any ending, `GET /api/games/{id}/recap` returns a recap for the organizer and participants: a summary (duration, players, eliminations, withdrawals, declined reports, end reason, tie), leaderboard, elimination timeline and awards. It names who was eliminated or withdrew and when, never who eliminated them. The recap API is implemented; its frontend remains [#42](https://github.com/jesperfrisk/elimin8/issues/42).
 
-The unauthenticated board API and read-only MQTT topic are implemented ([#36](https://github.com/jesperfrisk/elimin8/issues/36)). The `#/board/<gameId>` page is still being built in [#39](https://github.com/jesperfrisk/elimin8/issues/39); unauthenticated recap access is part of #42. Organizer dispute resolution, manual victim selection, pause/resume and a timer confirmation grace period remain future work. The rules below distinguish those planned features from current behavior.
+The unauthenticated board API and read-only MQTT topic are implemented ([#36](https://github.com/jesperfrisk/elimin8/issues/36)), along with the full-screen `#/board/<gameId>` page ([#39](https://github.com/jesperfrisk/elimin8/issues/39)). Organizers and joined players can open or copy the board link from their game view. Unauthenticated recap access is part of #42. Organizer dispute resolution, manual victim selection, pause/resume and a timer confirmation grace period remain future work. The rules below distinguish those planned features from current behavior.
 
 Player and organizer codes authenticate access across devices. Private codes are shown only when generated; an organizer can reset a lost player code, invalidating that player's previous code and access credentials. Browser tabs remember temporary access for up to 12 hours, without saving private codes. Keep the organizer management code: account recovery is not implemented.
 
@@ -170,7 +170,7 @@ Withdrawals do not count as kills.
 
 Every active game includes an authenticated **Kill Board** for its organizer and
 players. It displays participant status without private relationships. The
-separate public board API is available, while its no-login page is pending #39.
+separate public board API and no-login page are available (#36 / #39).
 
 The Kill Board and separate timer panel display:
 
@@ -288,11 +288,16 @@ The application must enforce different visibility levels for game information.
 | Elimination report relationships | Involved reports only | All reports | No |
 | Remaining time            | Yes    | Yes       | Yes               |
 
-A *board link viewer* needs no account. Today the implemented contract is
+A *board link viewer* is anyone who opens the public board link
+(`#/board/<gameId>`), the full-screen live board for a TV or phone; organizers
+and joined players can copy the link from their game view. They need no account.
+The implemented API contract is
 `GET /api/board/{gameId}` plus `boards/{gameId}/updates`: game ID/name/status,
 player IDs/names/display numbers/status, active count and timer only. It contains
-no photos, assignments, teams, reports, scores or recap. The `#/board/<gameId>`
-page is pending #39, photo display is #41, and public post-game recap is #42.
+no photos, assignments, teams, reports, scores or recap. The board UI shows
+names, status, the active count and timer; display numbers remain in the API
+but are not shown on tiles. Photo display is #41, and public post-game recap
+is #42.
 
 This table describes current permissions during play. Organizer access does not
 grant in-game kill totals; any proposed permission expansion needs a separate
