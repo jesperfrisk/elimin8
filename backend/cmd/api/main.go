@@ -94,6 +94,11 @@ func run() error {
 	go gameService.RunTimerSweep(outboxCtx, 5*time.Second)
 	games := controllers.NewGameController(gameService)
 	games.SetRateLimit(cfg.LoginRateLimit)
+	trusted, err := controllers.ParseTrustedProxies(cfg.TrustedProxies)
+	if err != nil {
+		return errors.New("TRUSTED_PROXIES must be comma-separated IP addresses or CIDR prefixes")
+	}
+	games.SetTrustedProxies(trusted)
 	games.Register(mux)
 	if photoStore != nil {
 		photos := services.NewPhotoService(gameService, photoStore)

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
@@ -23,7 +23,8 @@ type GameController struct {
 	service  *services.GameService
 	mu       sync.Mutex
 	attempts map[string]attemptWindow
-	limit    int // attempts per remote address and endpoint each minute
+	limit    int // attempts per client address and endpoint each minute
+	trusted  []netip.Prefix
 }
 
 func NewGameController(s *services.GameService) *GameController {
@@ -114,13 +115,13 @@ func decodeGame(w http.ResponseWriter, r *http.Request, v any) bool {
 	return true
 }
 
-// Bound both expensive code hashing and anonymous game creation. RemoteAddr is
-// deliberately not replaced with untrusted forwarding headers.
+// Bound both expensive code hashing and anonymous game creation per client
+// address (see clientAddress for trusted-proxy handling) plus an aggregate cap.
 func (c *GameController) allow(r *http.Request) bool { return c.allowN(r, r.URL.Path, 0) }
 
 // allowN is allow with an explicit bucket name and per-minute limit.
 func (c *GameController) allowN(r *http.Request, bucket string, limit int) bool {
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	host := c.clientAddress(r)
 	key := host + ":" + bucket
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -140,10 +141,25 @@ func (c *GameController) allowN(r *http.Request, bucket string, limit int) bool 
 	if v.count >= limit || len(c.attempts) >= 10000 {
 		return false
 	}
+	// Bounded aggregate safeguard per endpoint across all clients, so many
+	// spread-out addresses cannot drive unlimited code hashing.
+	aggKey := "*:" + bucket
+	agg := c.attempts[aggKey]
+	if agg.until.IsZero() {
+		agg.until = now.Add(time.Minute)
+	}
+	if agg.count >= AggregateRateLimit {
+		return false
+	}
+	agg.count++
+	c.attempts[aggKey] = agg
 	v.count++
 	c.attempts[key] = v
 	return true
 }
+
+// AggregateRateLimit caps attempts per endpoint per minute across all clients.
+const AggregateRateLimit = 600
 
 func (c *GameController) limited(w http.ResponseWriter, r *http.Request) bool {
 	if c.allow(r) {
