@@ -19,6 +19,7 @@ type PlayerView struct {
 	Mission      string      `json:"mission,omitempty"`
 	Victim       *VictimView `json:"victim,omitempty"`
 	EliminatedAt *time.Time  `json:"eliminatedAt,omitempty"`
+	PhotoURL     string      `json:"photoUrl,omitempty"`
 
 	// Only ever set on the player's own "me" view.
 	Team *TeamView `json:"team,omitempty"`

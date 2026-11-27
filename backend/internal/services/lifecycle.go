@@ -146,10 +146,8 @@ func (s *GameService) Authorize(ctx context.Context, token string) (models.Acces
 		return a, nil, err
 	}
 	if a.PlayerID != "" {
-		for _, p := range g.Players {
-			if p.ID == a.PlayerID && p.CredentialVersion == a.Version && p.JoinedAt != nil && (g.Status == "lobby" || p.Included || g.StartedAt == nil) {
-				return a, g, nil
-			}
+		if playerCredentialCurrent(g, a) {
+			return a, g, nil
 		}
 		return a, nil, ErrUnauthorized
 	}
