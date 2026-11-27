@@ -37,6 +37,7 @@ func run() error {
 
 	if cfg.PhotoStorage.Endpoint != "" {
 		storageCtx, storageCancel := context.WithTimeout(ctx, 15*time.Second)
+		// Foundation validates startup here; photo API PR #57 retains this adapter.
 		_, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
 		storageCancel()
 		if err != nil {
