@@ -16,6 +16,7 @@ import (
 	"github.com/jesperfrisk/elimin8/backend/internal/realtime"
 	"github.com/jesperfrisk/elimin8/backend/internal/repositories/mongodb"
 	"github.com/jesperfrisk/elimin8/backend/internal/services"
+	"github.com/jesperfrisk/elimin8/backend/internal/storage"
 )
 
 func main() {
@@ -28,8 +29,21 @@ func main() {
 
 func run() error {
 	cfg := config.Load()
+	if err := cfg.ValidatePhotoStorage(); err != nil {
+		return errors.New("photo storage configuration is invalid; check PHOTO_STORAGE settings")
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	if cfg.PhotoStorage.Endpoint != "" {
+		storageCtx, storageCancel := context.WithTimeout(ctx, 15*time.Second)
+		// Foundation validates startup here; photo API PR #57 retains this adapter.
+		_, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
+		storageCancel()
+		if err != nil {
+			return errors.New("private photo storage could not be initialized; check PHOTO_STORAGE settings and storage availability")
+		}
+	}
 
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	db, err := database.Connect(connectCtx, cfg.MongoDBURI, cfg.MongoDBDatabase)
