@@ -38,6 +38,7 @@ func run() error {
 	var photoStore storage.Store
 	if cfg.PhotoStorage.Endpoint != "" {
 		storageCtx, storageCancel := context.WithTimeout(ctx, 15*time.Second)
+		// Retain the validated private adapter for the photo API routes.
 		store, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
 		storageCancel()
 		if err != nil {
