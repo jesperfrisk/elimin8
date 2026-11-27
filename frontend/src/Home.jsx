@@ -58,8 +58,8 @@ export function SavedGames({ saved, role }) {
     <section className="saved">
       <h2>Return to a game</h2>
       <p className="muted">
-        Access remembered in this browser tab. Your private code works on other
-        devices.
+        Player games are remembered on this device until you sign out; organizer
+        access stays in this browser tab. Your private code works on other devices.
       </p>
       <div className="game-links">
         {games.map((a) => (
@@ -73,6 +73,7 @@ export function SavedGames({ saved, role }) {
               <small>
                 {a.role === "organizer" ? "Organizer" : "Player"} ·{" "}
                 {a.game.invitationCode}
+                {a.remembered ? " · remembered on this device" : ""}
               </small>
             </span>
             <span>↗</span>

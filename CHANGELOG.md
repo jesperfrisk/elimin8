@@ -7,6 +7,18 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
+- Remembered player games in the browser (#84, completes #71): after a restart a
+  player's games are listed as remembered on this device and each opens by
+  exchanging its HttpOnly cookie for a fresh admission, restoring the same player
+  without a code. Only non-secret metadata (game id, name, invitation code) is kept
+  in `localStorage`; private codes, remember secrets and hashes are never stored, and
+  remembering two games never overwrites either. An open game renews its short-lived
+  admission before it ends or when it is rejected, without rejoining or extending the
+  30 days. A lost cookie, expiry, revocation or an organizer code reset shows a
+  recovery form (invitation code pre-filled) that returns the same player and sets the
+  cookie again. **Sign out of this game** revokes the credential on the server first
+  and clears only that game; if the server can't be reached the player stays signed in
+  and is told. Organizer access is unchanged.
 - Post-game recap UI (#42): once a game has ended, the public board (`#/board/<id>`, no login) and the organizer/player game pages show a recap with a winner hero, kill leaderboard (ties shown as ties), elimination timeline with `mm:ss` offsets, award cards and a game summary, with empty states and a data-table fallback. On the board it replaces the player grid ("Show players" toggles back). It consumes the existing recap routes and shows subjects only, never killers. Reduced motion disables the staggered reveal. Winners come from the server-calculated result, including team survival wins and timer ties with zero kills. Both recap routes expose only winner kind, ID and name after the game ends.
 - Remembered player session exchange and revocation (#83): matching-origin POST
   `/api/games/{id}/session` returns short-lived player admission without extending
@@ -27,6 +39,11 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Fixed
 
+- Browser player logins through the Vite dev proxy failed with 403 (#84): the proxy's
+  string shorthand sets `changeOrigin: true`, which rewrites the Host header, so the
+  backend's same-origin check (added with remembered sessions) never matched. The proxy
+  now uses the object form with `changeOrigin: false`, as the backend README already
+  assumed. Docker and Nginx were not affected.
 - Reconcile Phase 1 documentation with shipped behavior (#46): correct
   usage and privacy descriptions for teams, timers, kill counts and board
   access, and add a [capability-by-capability verification checklist](ROADMAP.md#phase-1-implementation-and-verification)

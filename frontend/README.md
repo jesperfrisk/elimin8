@@ -22,7 +22,7 @@ Use Node.js 22.12 or newer. Start the backend on port 8080, then:
 make frontend-dev
 ```
 
-Open the address printed by Vite (normally `http://localhost:5173`). Vite forwards `/api` requests and `/api/mqtt` WebSocket connections to `http://127.0.0.1:8080`.
+Open the address printed by Vite (normally `http://localhost:5173`). The dev proxy keeps the browser's Host header (`changeOrigin: false` in `vite.config.js`), which the backend's same-origin checks for player login and remembered sessions require. Vite forwards `/api` requests and `/api/mqtt` WebSocket connections to `http://127.0.0.1:8080`.
 
 ```sh
 make frontend-build
@@ -48,6 +48,7 @@ make frontend-build
 | `common.jsx` | Shared helpers: `PageHeading`, `CopyButton`, `formatDate` |
 | `Board.jsx`, `board.css`, `boardLayout.js` | Public live board (`#/board/<gameId>`), its skin, and pure layout helpers (tile fitting, initials, avatar colour) |
 | `Recap.jsx`, `recap.css`, `recapData.js` | Post-game recap (winner, leaderboard, timeline, awards, summary) shown on the board and game pages once a game has ended |
+| `rememberedGames.js`, `PlayerGateway.jsx` | Remembered player games: non-secret saved metadata, the session exchange and revoke calls, renewal timing, and the screen that restores a game or asks for the code |
 | `PlayerAvatar.jsx`, `PhotoUpload.jsx`, `photoImage.js`, `photo.css` | A player's picture (photo with initials fallback), the photo upload panel and roster controls, and on-device photo shrinking |
 | `boardMotion.js`, `boardSound.js` | The elimination moment: pure timing and diff logic, and the isolated Web Audio tones (replaceable by real audio files) |
 | `api.js`, `useGame.js`, `gameActionError.js` | API client, game state and MQTT hook, error messages |
@@ -93,11 +94,11 @@ Any configuration shipped to the browser is public. Database credentials and oth
 
 Implemented routes use hash navigation:
 
-- `/#/`: landing page and games remembered in this tab.
+- `/#/`: landing page and the games this device can open: player games remembered on this device and organizer games remembered in this tab.
 - `/#/organizer`: create a game or reopen it using invitation/management codes.
 - `/#/organizer/{id}`: add named players, copy private invitations, see joined status, reset codes, start/end games.
 - `/#/player`: join or return using invitation/private player codes.
-- `/#/player/{id}`: own lobby membership, active game, and ended-game status.
+- `/#/player/{id}`: own lobby membership, active game, and ended-game status. A game this tab has no access to is signed back in from the remembered cookie, or asks for the private code.
 - `/#/board/{id}`: the public live board (no login, no app chrome), see below.
 
 The organizer page also includes **Lobby missions**. Paste one mission per line; blank lines are ignored and repeated tasks remain separate entries. Large lists are submitted in batches of 100. Each successful batch clears its saved lines from the input, preserving unsaved lines if a later batch fails. New missions start enabled; use **Disable** or **Enable** on each entry to change which tasks are eligible. Changes save immediately, synchronize across organizer tabs, and lock when the lobby closes.
@@ -128,6 +129,8 @@ Each player is a portrait poster tile: the avatar fills the tile (their photo, o
 Sound is generated with the Web Audio API (no audio file), so it is silent until someone taps **Tap to enable sound** (browsers block audio before a gesture; **Keep silent** hides the gate). The choice and the mute toggle (**Sound on** / **Sound off**) are remembered per device in `localStorage`; after a reload the first tap or key press re-arms audio. Blocked audio, a failing `AudioContext` and unavailable or throwing storage are all ignored without an error. Every cue also fires a `board:sound` window event (`{ kind, audible, id }`) that tests use to observe sound.
 
 **Photos.** A joined player gets a **Your photo** panel in the lobby and during the game (not after it ends). **Take a photo** opens the front camera on phones and **Choose a photo** opens the gallery or files, so nobody is stuck with camera-only. The picked photo is shown in the shape of a board tile with **Use this photo**, **Choose another** and **Cancel**; nothing is uploaded, or shown publicly, until it is confirmed. Before upload the browser shrinks the photo to at most 1200 px on its longest side and re-encodes it as a JPEG (`photoImage.js`), so camera photos never hit the server's 5 MiB or 25 megapixel limit, uploads are quick on mobile data and EXIF never leaves the device; the server still re-processes everything. Server errors (too large, unsupported, game ended) are shown next to the buttons. The panel states that the photo is shown on the public board and deleted 24 hours after the game ends, and **Remove photo** takes it off again. Organizers see a small avatar for every player in the roster, with **Add photo** / **Replace photo** (uploaded straight away) and **Remove photo** (after a confirmation) next to **Reset code**, until the game ends. `PlayerAvatar` shows the photo with a fixed aspect, so loading never shifts the layout, and falls back to initials if there is no photo or it has expired. Photos of players in the game are read without credentials (that is how the public board shows them); in the organizer and player views they are fetched with the signed-in credentials, so a photo for an invitee who has not joined still shows.
+
+**Remembered games (#84).** A player code login also sets a game-scoped, HttpOnly, 30-day cookie (the backend does this; JavaScript never reads it). The browser keeps only non-secret lookup metadata in `localStorage` (`elimin8.games.v1`: game id, name, invitation code, saved time), never private codes, the remember secret or any hash, and the per-tab bearer access stays in `sessionStorage` as before. After a restart the games are listed on `#/player` as "remembered on this device". Opening one asks the server to exchange the cookie for a fresh admission (`POST /api/games/{id}/session`), so the same player is back without a code; nothing is restored until a game is opened. Remembering two games never overwrites either. While a game is open the page renews its admission 15 minutes before it ends, and again if the server rejects it, which swaps the token and reconnects live updates without losing the page; renewal never logs in, rejoins or extends the 30 days, and stops if a renewed admission is barely longer than the last (the 30-day limit is near). If the remembered sign-in is gone (cookies cleared, 30 days passed, signed out elsewhere, or the organizer reset the code) a recovery form shows the game with its invitation code pre-filled and asks only for the private code; the right code returns the same player and sets the cookie again, a wrong code or another game's code is refused, and **Remove this game from this device** forgets it. **Sign out of this game** revokes the credential on the server first and only then clears that game's saved data, access and cookie, leaving other games alone; if the server can't be reached the player stays signed in and is told so. A temporary failure when opening a game (offline, rate limited) offers **Try again**. Organizer access is unchanged and is never remembered.
 
 Start/end errors appear beside the game controls, receive keyboard focus, and scroll into view. Messages distinguish missing enabled missions, expired access, missing permissions or games, lifecycle conflicts, invalid data, rate limits, and server/connection failures. **Refresh game** resynchronizes uncertain outcomes; access errors also link to the organizer desk. A successful action followed by a failed state refresh is reported separately from a rejected action.
 

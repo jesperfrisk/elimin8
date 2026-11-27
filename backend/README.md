@@ -200,7 +200,7 @@ the immediate proxy and have it overwrite `X-Forwarded-Proto` with exactly
 `https` and preserve the browser's Host, including its port. Untrusted/malformed
 forwarding headers do not select HTTPS. Plain HTTP localhost/LAN development uses
 a non-Secure cookie; use HTTPS for shared deployments. The supplied Nginx API
-proxy preserves Host/port and overwrites forwarding headers; Vite preserves Host.
+proxy preserves Host/port and overwrites forwarding headers; Vite preserves Host only because `frontend/vite.config.js` uses the object form with `changeOrigin: false` (Vite's string-shorthand proxy sets `changeOrigin: true`, which rewrites Host and makes every browser login fail with 403).
 Player browser code-login requests must have a matching Origin (scheme, host
 and port). Cross-site/opaque/malformed origins are rejected before login;
 non-browser clients without Origin remain supported.
