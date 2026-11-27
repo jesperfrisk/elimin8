@@ -55,6 +55,7 @@ type retentionStore struct {
 	mu             sync.Mutex
 	objects        map[string][]byte
 	deleteFailures map[string]int
+	deleteErrors   map[string]error
 	listFailures   map[string]int
 	deleted        []string
 	afterList      func()
@@ -87,6 +88,10 @@ func (s *retentionStore) Delete(ctx context.Context, key string) error {
 		return err
 	}
 	s.mu.Lock()
+	if err := s.deleteErrors[key]; err != nil {
+		s.mu.Unlock()
+		return err
+	}
 	if s.deleteFailures[key] > 0 {
 		s.deleteFailures[key]--
 		s.mu.Unlock()
@@ -560,5 +565,80 @@ func TestPhotoRetentionBoundsEachGameAndContinuesAfterTimeout(t *testing.T) {
 		if gameCtx.Err() != context.Canceled {
 			t.Fatal("per-game timer was not released")
 		}
+	}
+}
+
+func TestPhotoRetentionDeletesExternalNamesWithoutObjectTimestamps(t *testing.T) {
+	now := time.Now().UTC()
+	games, repo, store := retentionFixture(t, endedPhotoGame("ended", now.Add(-48*time.Hour)))
+	names := []string{"current", "../literal-dot-name", "nested/../../literal-path", " space name ", "fårö照片", "photo&<one>.jpeg"}
+	for _, name := range names {
+		store.seed("games/ended/photos/" + name)
+	}
+	store.seed("games/active/photos/keep")
+	objects, err := store.List(context.Background(), "games/ended/photos/")
+	if err != nil || len(objects) != len(names) {
+		t.Fatal("bad external object fixture")
+	}
+	for _, object := range objects {
+		if !object.LastModified.IsZero() {
+			t.Fatal("fixture unexpectedly has timestamp")
+		}
+	}
+	if err := newRetention(games, repo, store, now).Sweep(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range names {
+		if store.has("games/ended/photos/" + name) {
+			t.Fatal("external name or missing timestamp blocked game-prefix cleanup")
+		}
+	}
+	if !store.has("games/active/photos/keep") {
+		t.Fatal("cleanup escaped expired namespace")
+	}
+	got, _ := repo.Get(context.Background(), "ended")
+	if got.Players[0].PhotoID != "" {
+		t.Fatal("completed cleanup retained stale reference")
+	}
+}
+
+func TestPhotoRetentionUndeletableOddObjectDoesNotBlockNeighborsOrComplete(t *testing.T) {
+	now := time.Now().UTC()
+	games, repo, store := retentionFixture(t, endedPhotoGame("ended", now.Add(-48*time.Hour)))
+	invalidKey := "games/ended/photos/unrepresentable\x00name"
+	store.seed(invalidKey)
+	store.deleteErrors = map[string]error{invalidKey: storage.ErrInvalid}
+	for _, name := range []string{"current", "before", "valid neighboring photo", "z-after"} {
+		store.seed("games/ended/photos/" + name)
+	}
+	store.seed("games/active/photos/keep")
+	job := newRetention(games, repo, store, now)
+	for sweep := 0; sweep < 2; sweep++ {
+		if err := job.Sweep(context.Background()); err == nil {
+			t.Fatal("undeletable object falsely completed cleanup")
+		}
+		got, _ := repo.Get(context.Background(), "ended")
+		if got.Players[0].PhotoID != "current" || !store.has(invalidKey) {
+			t.Fatal("partial failure cleared reference or hid problematic object")
+		}
+	}
+	if len(store.deleted) != 4 {
+		t.Fatal("one malformed object stopped valid neighbors from being deleted")
+	}
+	if !store.has("games/active/photos/keep") {
+		t.Fatal("cleanup escaped expired namespace")
+	}
+	// Once the unsupported object is repaired/removed outside this limited XML
+	// deletion path, another sweep must observe emptiness and finish normally.
+	store.mu.Lock()
+	delete(store.objects, invalidKey)
+	delete(store.deleteErrors, invalidKey)
+	store.mu.Unlock()
+	if err := job.Sweep(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := repo.Get(context.Background(), "ended")
+	if got.Players[0].PhotoID != "" {
+		t.Fatal("cleanup did not recover after unsupported key was removed")
 	}
 }

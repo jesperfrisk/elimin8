@@ -32,15 +32,17 @@ func run() error {
 	if err := cfg.ValidatePhotoStorage(); err != nil {
 		return errors.New("photo storage configuration is invalid; check PHOTO_STORAGE settings")
 	}
-	photoRetention, err := config.LoadPhotoRetention()
-	if err != nil {
-		return err
-	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	var photoStore storage.Store
+	var photoRetention time.Duration
 	if cfg.PhotoStorage.Endpoint != "" {
+		retention, err := config.LoadPhotoRetention()
+		if err != nil {
+			return err
+		}
+		photoRetention = retention
 		storageCtx, storageCancel := context.WithTimeout(ctx, 15*time.Second)
 		store, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
 		storageCancel()
