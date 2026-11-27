@@ -29,6 +29,9 @@ type Broker struct {
 	service *services.GameService
 	wake    chan struct{}
 	slots   chan struct{}
+	// boards remembers the last published board digest per game, so the public
+	// topic only fires when the visible board changed.
+	boards map[string]string
 }
 
 func New(service *services.GameService) (*Broker, error) {
@@ -38,8 +41,8 @@ func New(service *services.GameService) (*Broker, error) {
 	caps.MaximumSessionExpiryInterval = 0
 	caps.MaximumClientWritesPending = 64
 	server := mqtt.New(&mqtt.Options{InlineClient: true, Capabilities: caps, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
-	b := &Broker{server: server, service: service, wake: make(chan struct{}, 1), slots: make(chan struct{}, 2048)}
-	if err := server.AddHook(&authHook{service: service}, nil); err != nil {
+	b := &Broker{server: server, service: service, wake: make(chan struct{}, 1), slots: make(chan struct{}, 2048), boards: map[string]string{}}
+	if err := server.AddHook(&authHook{service: service, server: server}, nil); err != nil {
 		return nil, err
 	}
 	if err := server.Serve(); err != nil {
@@ -119,9 +122,39 @@ func (c *socketConn) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// Anonymous board viewers connect without a token using a "board-" client id.
+// They may only read boards/<gameId>/updates and never publish.
+const (
+	boardClientPrefix   = "board-"
+	maxAnonymousClients = 1024
+)
+
 type authHook struct {
 	mqtt.HookBase
 	service *services.GameService
+	server  *mqtt.Server
+}
+
+func isAnonymous(cl *mqtt.Client) bool { return len(cl.Properties.Username) == 0 }
+
+// boardTopicAllowed accepts exactly one concrete board topic: no wildcards and
+// no other segments, so an anonymous client can never reach a private topic.
+func boardTopicAllowed(topic string) bool {
+	parts := strings.Split(topic, "/")
+	if len(parts) != 3 || parts[0] != "boards" || parts[2] != "updates" {
+		return false
+	}
+	return parts[1] != "" && !strings.ContainsAny(parts[1], "+#")
+}
+
+func (h *authHook) anonymousClients() int {
+	n := 0
+	for _, cl := range h.server.Clients.GetAll() {
+		if !cl.Net.Inline && isAnonymous(cl) {
+			n++
+		}
+	}
+	return n
 }
 
 func (h *authHook) ID() string { return "game-access" }
@@ -131,7 +164,7 @@ func (h *authHook) Provides(b byte) bool {
 
 func (h *authHook) OnPacketRead(cl *mqtt.Client, pk packets.Packet) (packets.Packet, error) {
 	// Recheck access on keepalive too, so idle revoked/expired connections close.
-	if pk.FixedHeader.Type == packets.Pingreq {
+	if pk.FixedHeader.Type == packets.Pingreq && !isAnonymous(cl) {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if _, _, err := h.service.Authorize(ctx, string(cl.Properties.Username)); err != nil {
@@ -145,6 +178,9 @@ func (h *authHook) OnConnectAuthenticate(cl *mqtt.Client, pk packets.Packet) boo
 		return false
 	}
 	token := string(pk.Connect.Username)
+	if token == "" {
+		return strings.HasPrefix(cl.ID, boardClientPrefix) && h.anonymousClients() < maxAnonymousClients
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	a, _, err := h.service.Authorize(ctx, token)
@@ -153,6 +189,9 @@ func (h *authHook) OnConnectAuthenticate(cl *mqtt.Client, pk packets.Packet) boo
 func (h *authHook) OnACLCheck(cl *mqtt.Client, topic string, write bool) bool {
 	if write {
 		return false
+	}
+	if isAnonymous(cl) {
+		return boardTopicAllowed(topic)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -201,6 +240,9 @@ func (b *Broker) RunOutbox(ctx context.Context, repo Outbox) {
 					}
 				}
 				if !failed {
+					failed = b.publishBoard(&g)
+				}
+				if !failed {
 					if err = repo.Published(batchCtx, g.ID, g.Revision); err != nil {
 						failed = true
 					}
@@ -216,4 +258,22 @@ func (b *Broker) RunOutbox(ctx context.Context, repo Outbox) {
 			}
 		}
 	}
+}
+
+// publishBoard notifies anonymous board viewers when the visible board changed.
+// It reports true on a delivery failure so the outbox retries.
+func (b *Broker) publishBoard(g *models.Game) bool {
+	digest := services.BoardDigest(g)
+	if b.boards[g.ID] == digest {
+		return false
+	}
+	payload, _ := json.Marshal(map[string]any{"gameId": g.ID, "type": "board.updated"})
+	if err := b.server.Publish(services.BoardTopic(g.ID), payload, false, 1); err != nil {
+		return true
+	}
+	if len(b.boards) >= 10000 {
+		b.boards = map[string]string{}
+	}
+	b.boards[g.ID] = digest
+	return false
 }

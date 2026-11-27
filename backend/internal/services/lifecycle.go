@@ -10,12 +10,17 @@ import (
 	"github.com/jesperfrisk/elimin8/backend/internal/models"
 )
 
+// GameIDLength is the length of newly generated game ids.
+const GameIDLength = 26
+
 func (s *GameService) Create(ctx context.Context, name, description string) (models.Admission, error) {
 	name, description = strings.TrimSpace(name), strings.TrimSpace(description)
 	if !validText(name, 100) || !utf8.ValidString(description) || utf8.RuneCountInString(description) > 2000 {
 		return models.Admission{}, ErrInvalid
 	}
-	id, err := RandomCode(24)
+	// 26 characters x 5 bits = 130 bits: the id doubles as the public board
+	// link, so it must be unguessable. Older 24-character (120-bit) ids stay valid.
+	id, err := RandomCode(GameIDLength)
 	if err != nil {
 		return models.Admission{}, err
 	}

@@ -12,6 +12,9 @@ type Player struct {
 	Mission           string     `bson:"mission,omitempty"`
 	VictimID          string     `bson:"victimId,omitempty"`
 	EliminatedAt      *time.Time `bson:"eliminatedAt,omitempty"`
+	// Number is the stable public display number, fixed when the player is
+	// added and never reused. Zero on games created before it existed.
+	Number int `bson:"number,omitempty"`
 	// Always persist the empty value so removing a photo clears MongoDB's field.
 	PhotoID string `bson:"photoId"`
 

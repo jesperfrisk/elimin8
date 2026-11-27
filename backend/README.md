@@ -160,11 +160,23 @@ Game lifecycle, organizer rosters, lobby missions, private assignments, mutual e
 | POST | `/api/games/{id}/eliminations/{claim}/response` | Named victim: respond with `{ "accept": true }` or `{ "accept": false }` |
 | POST | `/api/games/{id}/withdrawals` | Living player, active game: ask to withdraw; returns `{ "withdrawalToken", "expiresAt" }`. Changes nothing until confirmed; the token expires after two minutes |
 | POST | `/api/games/{id}/withdrawals/confirm` | Same player: confirm with `{ "withdrawalToken": "..." }`; returns 204. Marks the player withdrawn (not a kill), their hunter inherits the victim and mission, and the last survivor wins as after an elimination |
-| GET (upgrade) | `/api/mqtt` | Authenticated MQTT over WebSockets |
+| GET | `/api/board/{gameId}` | **No token.** Public read-only live board: `{ "gameId", "name", "status": "lobby"\|"active"\|"ended", "activeCount", "timer": { "minutes", "endsAt", "remainingSeconds", "endReason" } \| null, "players": [ { "id", "number", "name", "status": "active"\|"eliminated"\|"withdrawn" } ] }`. 404 for unknown ids; same shape in every game state; lobby lists no players |
+| GET (upgrade) | `/api/mqtt` | MQTT over WebSockets: authenticated, or anonymous read-only for the public board topic |
 
 Protected HTTP requests use `Authorization: Bearer <token>`. Tokens expire after 12 hours. Private codes are normalized to uppercase with spaces/hyphens ignored, and hashed with scrypt using the random game ID as salt. Player codes have eight unambiguous random characters; organizer management codes have 24. Code reset preserves joined status and the frozen participant roster while incrementing the credential version. Players receive their own assignments and a safe participant list after starting; only organizers receive other players' assignments. No response exposes stored hashes.
 
 Anonymous creation/login attempts are limited per remote address and endpoint (30 per minute by default; `LOGIN_RATE_LIMIT_PER_MINUTE` overrides it within 1–600, and an unset, malformed or out-of-range value keeps 30). Forwarding headers are not trusted, so clients behind Nginx share its limit of 30 attempts per minute for each endpoint, including successful joins; a larger group joining from one proxy within a minute can receive 429 with `Retry-After`. The browser suite logs in far more often than that, so run it against `make e2e-up`, which applies `compose.e2e.yaml` (limit 600). That override is test-only: do not use it for a shared deployment. For larger deployments, configure a trusted-proxy-aware limiter before exposing the service publicly. Use HTTPS/WSS outside localhost and keep private codes out of logs and URLs.
+
+## Public board
+
+`GET /api/board/{gameId}` and the MQTT topic `boards/{gameId}/updates` let a TV or any browser watch a game from a link (`#/board/<gameId>`). The link is the game id only: anyone holding it can watch, and it grants no ability to join or act.
+
+- **Payload:** names, ids, a stable display `number`, status, `activeCount`, game status and the timer. Never missions, targets, hunters, teams, kill counts, killers or codes (tests assert the exact JSON keys in lobby, active and ended states). Players are ordered by display number, so order never reveals who was eliminated or withdrew first. The recap is a separate later field, available only after the game ends.
+- **Display number:** assigned when the organizer adds a player (`Player.Number`), persisted and never reused (players are never removed). Games created before this existed fall back to the player's roster position, which is equally stable.
+- **Game id entropy:** ids come from `crypto/rand` through `RandomCode`, which uses 5 bits per character. New games use 26 characters (130 bits, `services.GameIDLength`). Earlier games used 24 characters (120 bits) and stay valid with no migration.
+- **Anonymous MQTT:** a client may connect without a username using a client id beginning `board-` (clean session, no will). It may subscribe only to one concrete `boards/{id}/updates` topic: no wildcards, no `games/...` topics. Publishing is always denied. At most 1,024 anonymous clients are connected at once.
+- **Board messages:** `{ "gameId", "type": "board.updated" }`, published (QoS 1) only when the visible board changes (a status, the game status or the timer setup), not on private revisions such as a pending elimination report, so the topic does not leak report timing. Viewers refetch the HTTP endpoint on each message.
+- **Abuse control:** the unauthenticated endpoint has its own per-address budget of 240 requests per minute, shared across game ids (so scanning many ids is bounded too) and larger than the 30-per-minute auth limit so several screens behind one address work. Responses are `Cache-Control: no-store`; each request is a single indexed read, so no server-side cache was added.
 
 ## MQTT and Delivery
 

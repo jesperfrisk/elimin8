@@ -261,18 +261,20 @@ Secrecy is a core mechanic of Elimin8.
 
 The application must enforce different visibility levels for game information.
 
-| Information               | Player | Organizer |
-| ------------------------- | ------ | --------- |
-| Own victim                | Yes    | Yes       |
-| Own mission               | Yes    | Yes       |
-| Own teammates             | Yes    | Yes       |
-| Other players' victims    | No     | Yes       |
-| Other players' missions   | No     | Yes       |
-| Opposing team memberships | No     | Yes       |
-| Public player statuses    | Yes    | Yes       |
-| Kill counts during game   | No     | Yes       |
-| Killer identities         | No     | Yes       |
-| Remaining time            | Yes    | Yes       |
+| Information               | Player | Organizer | Board link viewer |
+| ------------------------- | ------ | --------- | ----------------- |
+| Own victim                | Yes    | Yes       | No                |
+| Own mission               | Yes    | Yes       | No                |
+| Own teammates             | Yes    | Yes       | No                |
+| Other players' victims    | No     | Yes       | No                |
+| Other players' missions   | No     | Yes       | No                |
+| Opposing team memberships | No     | Yes       | No                |
+| Public player statuses    | Yes    | Yes       | Yes               |
+| Kill counts during game   | No     | Yes       | No                |
+| Killer identities         | No     | Yes       | No                |
+| Remaining time            | Yes    | Yes       | Yes               |
+
+A *board link viewer* is anyone who opens the public board link (`#/board/<gameId>`). They need no account and can only read names, status, the active count and the timer.
 
 All participants can see the public Kill Board, but it must not reveal any secret relationships.
 
