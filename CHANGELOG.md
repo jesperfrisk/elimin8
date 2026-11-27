@@ -7,6 +7,7 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
+- Public board recap API (#85): unauthenticated `GET /api/board/{gameId}/recap` returns the same payload as the authenticated recap for ended games (409 before the end, 404 for unknown ids), reusing `RecapOf`, the board's per-IP rate limit and `Cache-Control: no-store`. Tests assert the exact keys and that no killer, mission, target, code or team-membership data appears.
 - `make reset` (#76): destructive local reset that runs `docker compose down --volumes --remove-orphans` for this Compose project only (honors `COMPOSE_PROJECT_NAME`), deleting the MongoDB and RustFS volumes (games, access records, photos) and the local seed marker, and leaving the stack stopped and empty with no reseeding. Repeatable. `make clean` is now an alias for it, so there is one cleanup implementation.
 - Persistent private elimination notice (#74): after a victim accepts an elimination, their own game view gains `me.elimination` (`killer`, `mission`, `confirmedAt`) and the player page shows an "Elimination notice" panel that survives reloads and game-ending kills. The mission is snapshotted at acceptance (before the transfer) and never serialized in the shared `eliminations` list; legacy eliminations report `mission: null`. No other role sees the killer/mission relationship, and no push, service worker or OS notification is added. Existing dynamic-target and team-repair tests still pass; the ROADMAP notification item is ticked.
 

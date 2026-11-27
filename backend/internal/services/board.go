@@ -27,6 +27,20 @@ func (s *GameService) Board(ctx context.Context, id string) (models.BoardView, e
 	return BuildBoard(g, s.now()), nil
 }
 
+// BoardRecap returns the post-game recap for the public board. It loads the
+// game like Board (including timer expiry) and reuses RecapOf. Unknown ids are
+// ErrNotFound and games that have not ended are ErrResultNotReady.
+func (s *GameService) BoardRecap(ctx context.Context, id string) (*models.Recap, error) {
+	g, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if g, err = s.ExpireDue(ctx, g); err != nil {
+		return nil, err
+	}
+	return RecapOf(g)
+}
+
 // BuildBoard assembles the board payload. Lobby games list no players (the
 // roster is not public before the game starts) but keep the same shape.
 // Players are ordered by display number, which is fixed when the player is

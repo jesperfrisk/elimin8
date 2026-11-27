@@ -9,6 +9,7 @@ const boardRequestsPerMinute = 240
 
 func (c *GameController) registerBoard(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/board/{id}", c.board)
+	c.registerBoardRecap(mux)
 }
 
 func (c *GameController) board(w http.ResponseWriter, r *http.Request) {
