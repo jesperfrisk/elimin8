@@ -64,6 +64,17 @@ feature/* | fix/* | chore/*  --PR-->  dev  --PR (human approves)-->  main
   GitHub branch protection on `main` (and required CI on `dev`) as the real
   backstop; agent permissions alone are not a security boundary.
 
+### Definition of done
+
+A ticket is done only when all of these hold; reviewers block on the first two:
+
+1. The PR adds a `CHANGELOG.md` entry under `## Unreleased` citing the issue.
+2. `ROADMAP.md` is ticked (or annotated, for partial delivery) in the same PR.
+3. After the merge into `dev`, the linked issue is **closed explicitly**
+   (`gh issue close`, done by the `pr-reviewer` right after
+   `merge-to-dev.sh`). GitHub's `Closes #n` only fires for merges into the
+   default branch, so it does not close issues merged into `dev`.
+
 ### Loops (one role per session)
 
 - **Reviewer:** `/loop 5m /review-loop` (`.claude/skills/review-loop/`).

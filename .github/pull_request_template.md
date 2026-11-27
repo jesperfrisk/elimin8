@@ -25,7 +25,9 @@ Closes #
 ## Checklist
 
 - [ ] No missions/targets/team/kill counts leak in any API response for the wrong role
-- [ ] README / CHANGELOG updated if behaviour or setup changed
+- [ ] `CHANGELOG.md` entry under Unreleased cites the issue (or: tooling-only, why)
+- [ ] `ROADMAP.md` ticked or annotated if this completes (part of) a roadmap item
+- [ ] README updated if behaviour or setup changed
 - [ ] Out-of-scope findings listed below instead of fixed here
 
 ## Follow-ups discovered

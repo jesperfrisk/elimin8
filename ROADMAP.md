@@ -15,12 +15,12 @@ rules and the [CHANGELOG](CHANGELOG.md) for what has shipped.
 - [x] Reveal private assignments when games start
 - [x] Implement mutual elimination confirmation
 - [x] Transfer victims and missions automatically
-- [ ] Support confirmed player withdrawals
+- [x] Support confirmed player withdrawals
 - [x] Create privacy-safe Kill Board
-- [ ] Track kills privately
+- [x] Track kills privately
 - [x] Support optional game timers
-- [ ] Detect individual and team winners
-- [ ] Calculate game results
+- [x] Detect individual and team winners
+- [x] Calculate game results
 
 ## Phase 2: Improved Experience
 
@@ -43,9 +43,9 @@ Eliminations and missions:
 
 Media:
 
-- [ ] Upload a photo/selfie per game and per temporary player account
-- [ ] Object storage (RustFS or another S3-compatible store) in the Docker Compose infrastructure
-- [ ] Delete all uploaded images 24 hours after the game ends (configurable retention; #37 / #55)
+- [ ] Upload a photo/selfie per game and per temporary player account (backend shipped in #54; UI pending in #41)
+- [x] Object storage (RustFS or another S3-compatible store) in the Docker Compose infrastructure
+- [x] Delete all uploaded images 24 hours after the game ends (configurable retention, `PHOTO_RETENTION_HOURS`; #37 / #55)
 
 Developer experience:
 
