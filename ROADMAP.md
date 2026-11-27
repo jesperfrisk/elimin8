@@ -78,8 +78,8 @@ feature. Phase 2/3 work below retains its existing scope.
 Joining and recovery:
 
 - [ ] One shared QR code per lobby (replaces per-player QR invitations): players scan it, enter their name, and press **Join**
-- [ ] Persistent cookie holding the player's unique ID, so they stay signed in as the same player (hashed credential storage and 30-day cookie issuance: #82; session exchange #83 and frontend restoration #84 remain, parent #71)
-- [ ] Cookie-loss recovery: players can re-enter their unique code to reclaim their player and have the cookie set again (code login issues the remembered cookie in #82; session/recovery UI integration remains #83/#84)
+- [ ] Persistent cookie holding the player's unique ID, so they stay signed in as the same player (credential storage/issuance #82 and session exchange/revocation #83 delivered; frontend restoration remains #84, parent #71)
+- [ ] Cookie-loss recovery: players can re-enter their unique code to reclaim their player and have the cookie set again (code login issues the remembered cookie in #82; session endpoints delivered in #83; recovery UI remains #84)
 
 Eliminations and missions:
 

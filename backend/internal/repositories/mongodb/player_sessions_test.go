@@ -111,4 +111,30 @@ func TestPlayerSessionMongoPersistenceTTLAndSeparation(t *testing.T) {
 	if _, err := repo.GetPlayerSession(ctx, persisted.Hash); err != nil {
 		t.Fatal("application expiry test requires delayed TTL deletion")
 	}
+	clock = now
+	resumed, err := newProcess.ResumePlayerSession(ctx, "game", secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := newProcess.ForgetPlayerSession(ctx, "game", secret); err != nil {
+		t.Fatal(err)
+	}
+	thirdProcess := services.NewGameService(NewGameRepository(db))
+	if _, err := thirdProcess.ValidatePlayerSession(ctx, "game", secret); err != services.ErrUnauthorized {
+		t.Fatal("revocation lost on process restart")
+	}
+	if _, _, err := thirdProcess.Authorize(ctx, resumed.Token); err != services.ErrUnauthorized {
+		t.Fatal("linked bearer survived persisted revocation")
+	}
+	marker, err := repo.GetPlayerSession(ctx, persisted.Hash)
+	if err != nil || marker.RevokedAt == nil || marker.ExpiresAt != persisted.ExpiresAt {
+		t.Fatal("revocation did not preserve fixed-expiry marker")
+	}
+	if err := thirdProcess.ForgetPlayerSession(ctx, "game", secret); err != nil {
+		t.Fatal(err)
+	}
+	again, err := repo.GetPlayerSession(ctx, persisted.Hash)
+	if err != nil || !again.RevokedAt.Equal(*marker.RevokedAt) {
+		t.Fatal("repeated revocation changed the original marker")
+	}
 }

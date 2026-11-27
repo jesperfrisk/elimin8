@@ -35,6 +35,7 @@ func NewGameController(s *services.GameService) *GameController {
 // <domain>.go with a register<Domain>(mux) method and add one line here.
 func (c *GameController) Register(mux *http.ServeMux) {
 	c.registerLifecycle(mux)
+	c.registerPlayerSessions(mux)
 	c.registerPlayers(mux)
 	c.registerMissions(mux)
 	c.registerEliminations(mux)
