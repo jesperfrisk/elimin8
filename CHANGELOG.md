@@ -13,6 +13,11 @@ Notable changes and the reasoning behind them. Format loosely follows
   blocked the killer from reporting the new target. The check runs in the same
   revision-checked mutation as the transfer, so reconnects see the persisted
   cancellation.
+- In team mode, a lone surviving player is now recorded as a win for their
+  team (#44). `detectWinner` handled "one player left" before checking the
+  game mode, so a team game ended with a player winner while the result still
+  listed team standings. Individual mode is unchanged. Games that already
+  ended this way keep their stored winner.
 - Clearing the game timer and deleting all teams did not persist in MongoDB
   (#43): the repository used only `$set` with BSON `omitempty`, so a cleared
   field stayed stored and reappeared on the next read. `Save` now `$unset`s
