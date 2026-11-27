@@ -1,5 +1,138 @@
 import { test, expect } from "@playwright/test";
 
+test("selected presets mix with custom missions, retry safely, persist and stay private", async ({ page, request, browser }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#/organizer");
+  await page.getByLabel("Game name", { exact: true }).fill(`Mission presets ${Date.now()}`);
+  await page.getByRole("button", { name: "Create game" }).click();
+  const presets = page.getByRole("region", { name: "Mission presets", exact: true });
+  const list = page.getByRole("region", { name: "Mission list", exact: true });
+  const submit = presets.getByRole("button", { name: "Add selected presets", exact: true });
+  await expect(presets.getByRole("checkbox")).toHaveCount(4);
+  await expect(presets.getByText("No presets selected. Choose one or more to add.", { exact: true })).toBeVisible();
+  await expect(submit).toBeDisabled();
+  await expect(list.getByRole("listitem")).toHaveCount(0);
+  await expect(presets.getByRole("checkbox", { name: 'Get your assigned victim to say "Cheers" to you.', exact: true })).toBeVisible();
+  await expect(presets.getByRole("checkbox", { name: "Get your assigned victim to give you a high-five.", exact: true })).toBeVisible();
+  const laugh = presets.getByRole("checkbox", { name: "Make your assigned victim laugh.", exact: true });
+  const selfie = presets.getByRole("checkbox", { name: "Get your assigned victim to take a selfie with you.", exact: true });
+  // Native checkboxes support keyboard selection as well as touch/click.
+  await laugh.focus();
+  await page.keyboard.press("Space");
+  await expect(laugh).toBeChecked();
+  await selfie.check();
+  let submissions = 0;
+  let rejectRefresh = false;
+  await page.route("**/api/games/*", async (route) => {
+    if (rejectRefresh && route.request().method() === "GET") {
+      return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Refresh temporarily unavailable" }) });
+    }
+    return route.continue();
+  });
+  let release;
+  const pending = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/games/*/missions", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    submissions++;
+    expect(route.request().postDataJSON()).toEqual({ texts: [
+      "Make your assigned victim laugh.", "Get your assigned victim to take a selfie with you.",
+    ] });
+    if (submissions === 1) {
+      return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Presets temporarily unavailable" }) });
+    }
+    await pending;
+    rejectRefresh = true;
+    return route.continue();
+  });
+  await submit.click();
+  await expect(presets.getByRole("alert")).toHaveText("Presets temporarily unavailable");
+  await expect(laugh).toBeChecked();
+  await expect(selfie).toBeChecked();
+  await expect(list.getByRole("listitem")).toHaveCount(0);
+  await submit.click();
+  await expect(presets.getByRole("button", { name: "Adding presets…", exact: true })).toBeDisabled();
+  await expect(laugh).toBeDisabled();
+  release();
+  await expect(presets.getByRole("status")).toHaveText("Added 2 preset missions to this game.");
+  await expect(submit).toBeDisabled();
+  await expect(laugh).not.toBeChecked();
+  await expect(page.getByRole("alert").filter({ hasText: "Refresh temporarily unavailable" }).first()).toBeVisible();
+  expect(submissions).toBe(2);
+  rejectRefresh = false;
+  await page.unroute("**/api/games/*");
+  await page.unroute("**/api/games/*/missions");
+  await page.reload();
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+
+  const custom = page.getByLabel("Mission texts", { exact: true });
+  await custom.fill("Get your victim to say pineapple.\nGet your victim to say pineapple.");
+  await page.getByRole("button", { name: "Add missions +", exact: true }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(4);
+  await list.getByRole("button", { name: "Disable mission: Get your assigned victim to take a selfie with you.", exact: true }).click();
+  await page.reload();
+  await expect(list.getByRole("listitem")).toHaveCount(4);
+  await expect(list.getByRole("button", { name: "Enable mission: Get your assigned victim to take a selfie with you.", exact: true })).toBeVisible();
+  await expect(presets.getByRole("checkbox")).toHaveCount(4);
+  await expect(submit).toBeDisabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+  const owner = await page.evaluate(() => JSON.parse(sessionStorage.getItem("elimin8.access.v1"))[0]);
+  const base = `/api/games/${owner.game.id}`;
+  const headers = { Authorization: `Bearer ${owner.token}` };
+  const isolatedResponse = await request.post("/api/games", { data: { name: "Independent preset catalogue" } });
+  expect(isolatedResponse.ok()).toBe(true);
+  const isolated = await isolatedResponse.json();
+  expect(isolated.game.missions).toEqual([]);
+  const isolatedHeaders = { Authorization: `Bearer ${isolated.token}` };
+  const added = await request.post(`/api/games/${isolated.game.id}/missions`, {
+    headers: isolatedHeaders, data: { texts: ["Get your assigned victim to take a selfie with you."] },
+  });
+  expect(added.ok()).toBe(true);
+  const isolatedView = await (await request.get(`/api/games/${isolated.game.id}`, { headers: isolatedHeaders })).json();
+  expect(isolatedView.missions[0].enabled).toBe(true);
+  const original = await (await request.get(base, { headers })).json();
+  expect(original.missions).toHaveLength(4);
+  expect(original.missions.find((m) => m.text.includes("selfie")).enabled).toBe(false);
+
+  const rosterResponse = await request.post(`${base}/players`, { headers, data: { names: ["Preset Alice", "Preset Bob"] } });
+  expect(rosterResponse.ok()).toBe(true);
+  const roster = await rosterResponse.json();
+  const players = [];
+  for (const entry of roster.players) {
+    const login = await request.post("/api/access", { data: { invitationCode: owner.game.invitationCode, code: entry.code, role: "player" } });
+    expect(login.ok()).toBe(true);
+    players.push(await login.json());
+  }
+  expect(players[0].game.missions).toBeUndefined();
+  const playerHeaders = { Authorization: `Bearer ${players[0].token}` };
+  expect((await request.post(`${base}/missions`, { headers: playerHeaders, data: { texts: ["Make your assigned victim laugh."] } })).status()).toBe(403);
+  const playerContext = await browser.newContext({ baseURL: page.url() });
+  try {
+    await playerContext.addInitScript((access) => sessionStorage.setItem("elimin8.access.v1", JSON.stringify([access])), players[0]);
+    const playerPage = await playerContext.newPage();
+    await playerPage.goto(`/#/player/${owner.game.id}`);
+    await expect(playerPage.getByText("Your place in the lobby is confirmed.", { exact: true })).toBeVisible();
+    await expect(playerPage.getByRole("region", { name: "Mission presets", exact: true })).toHaveCount(0);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Start game" }).click();
+    await expect(page.getByText("Game active", { exact: true })).toBeVisible();
+    await expect(presets).toHaveCount(0);
+    const view = await (await request.get(base, { headers })).json();
+    expect(view.players.every((p) => p.mission !== "Get your assigned victim to take a selfie with you.")).toBe(true);
+    const enabled = original.missions.filter((m) => m.enabled).map((m) => m.text);
+    expect(view.players.every((p) => enabled.includes(p.mission))).toBe(true);
+    const privateView = await (await request.get(base, { headers: playerHeaders })).json();
+    expect(privateView.missions).toBeUndefined();
+    const board = await (await request.get(`/api/board/${owner.game.id}`)).json();
+    expect(JSON.stringify(board)).not.toMatch(/mission|pineapple|selfie|laugh/);
+    expect((await request.post(`${base}/missions`, { headers, data: { texts: ["Late preset"] } })).status()).toBe(409);
+  } finally {
+    await playerContext.close();
+    await request.post(`${base}/end`, { headers });
+    await request.post(`/api/games/${isolated.game.id}/end`, { headers: isolatedHeaders });
+  }
+});
+
 test("batch lobby missions, disable and re-enable, recover a failed batch, and lock on start", async ({ page, request }, testInfo) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

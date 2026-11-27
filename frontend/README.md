@@ -42,6 +42,7 @@ make frontend-build
 | `OrganizerView.jsx` | Organizer roster, start/end, add players, private codes, lobby missions |
 | `PlayerView.jsx` | Player status card, victim/mission, eliminations |
 | `LobbyMissions.jsx`, `Eliminations.jsx` | Mission setup and elimination confirmation |
+| `MissionPresets.jsx`, `missionPresetCatalog.js` | Optional built-in mission picker; selected tasks become ordinary game-local missions through the existing API |
 | `Teams.jsx`, `Timer.jsx`, `Withdrawal.jsx`, `KillBoard.jsx`, `Results.jsx` | Shipped Phase 1 team setup, countdown, confirmed withdrawal, authenticated status board and final results |
 | `slots.jsx` | Extension points for new panels (below) |
 | `common.jsx` | Shared helpers: `PageHeading`, `CopyButton`, `formatDate` |
@@ -97,6 +98,17 @@ Implemented routes use hash navigation:
 - `/#/board/{id}`: the public live board (no login, no app chrome), see below.
 
 The organizer page also includes **Lobby missions**. Paste one mission per line; blank lines are ignored and repeated tasks remain separate entries. Large lists are submitted in batches of 100. Each successful batch clears its saved lines from the input, preserving unsaved lines if a later batch fails. New missions start enabled; use **Disable** or **Enable** on each entry to change which tasks are eligible. Changes save immediately, synchronize across organizer tabs, and lock when the lobby closes.
+
+**Mission presets** offers four optional tasks involving the assigned victim:
+making them laugh, a high-five, saying Cheers, and a selfie. Select any combination
+with the checkboxes, then press **Add selected presets** to add them to this
+game's mission list. Nothing is added automatically. Custom entry stays available,
+and presets use the same enable/disable controls and mission assignment rules.
+While saving, the picker is disabled. A rejected save shows the server error and
+keeps the selection for retry; a successful save clears it before refreshing game
+state so a failed refresh cannot resubmit saved tasks. The catalogue is static,
+but the resulting entries belong only to the current game. Only organizers see
+the picker, and only in the lobby.
 
 Starting requires at least two joined players and one enabled mission. Each participant gets a private mission and a victim. Victims form one shuffled circle: nobody targets themselves, and everyone has exactly one victim and one hunter. All enabled mission entries are used once before reuse, with each round shuffled again. Players see only their own mission and victim after the start, including after reloads or reconnects; organizers see all assignments in the roster. The lobby mission list remains organizer-only.
 
