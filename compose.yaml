@@ -34,7 +34,11 @@ services:
       start_period: 20s
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        # Set by `make up`/`make build`; "unknown" for a bare `docker compose build`.
+        BUILD_REVISION: "${BUILD_REVISION:-unknown}"
     environment:
       HTTP_ADDR: ":8080"
       MONGODB_URI: "mongodb://mongodb:27017"

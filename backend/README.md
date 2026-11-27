@@ -73,6 +73,7 @@ make backend-vet
 ## Health Endpoints
 
 - `GET /api/health/live`: returns HTTP 200 while the API is serving, independently of MongoDB.
+- `GET /api/version`: public, read-only `{"revision": "<sha>"}`: the source revision embedded in the binary at build time, or the literal `unknown` when none was embedded. It reports nothing else (no paths, hostnames, URLs, credentials, environment values or player data) and is never guessed from the runtime environment. `make up`, `make build` and `make backend-run` embed `git rev-parse --short=12 HEAD` (override with `BUILD_REVISION=<sha> make up`). A bare `docker compose build` without `BUILD_REVISION` set reports `unknown`; export it first (`BUILD_REVISION=$(git rev-parse --short=12 HEAD) docker compose build`). To check for a stale image, compare `curl localhost:8080/api/version` with `git rev-parse --short=12 origin/dev`; if they differ (or it says `unknown`) and you need the newer code, rebuild with `make up`.
 - `GET /api/health/ready`: pings MongoDB with a two-second timeout and returns HTTP 200 when connected, or HTTP 503 when unavailable. Connection details are never returned.
 
 Startup verifies the connection before listening. Shutdown drains HTTP requests and closes the MongoDB client. The Docker image runs the API as a non-root user.

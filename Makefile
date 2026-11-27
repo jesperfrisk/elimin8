@@ -5,6 +5,11 @@
 ## Fast pre-push gate (same checks as CI; needs no running services)
 check: backend-fmt-check backend-vet backend-test frontend-build
 
+## Source revision embedded in the backend (see GET /api/version). Override with
+## BUILD_REVISION=<sha>; "unknown" if git metadata is unavailable.
+BUILD_REVISION ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
+export BUILD_REVISION
+
 ## Docker Compose stack (backend + frontend + mongodb)
 up:
 	docker compose up --build --wait
@@ -39,7 +44,7 @@ clean: reset
 
 ## Backend (native, requires Go 1.27+; needs mongodb running, e.g. `make up` or `docker compose up -d --wait mongodb`)
 backend-run:
-	cd backend && go run ./cmd/api
+	cd backend && go run -ldflags "-X github.com/jesperfrisk/elimin8/backend/internal/buildinfo.revision=$(BUILD_REVISION)" ./cmd/api
 
 backend-test:
 	cd backend && go test ./...
