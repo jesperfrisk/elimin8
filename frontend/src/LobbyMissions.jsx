@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { request } from "./api";
+import { MissionPresets } from "./MissionPresets";
 
 export function LobbyMissions({ game, access, action, busy }) {
   const [draft, setDraft] = useState("");
@@ -47,6 +48,7 @@ export function LobbyMissions({ game, access, action, busy }) {
             : "Enable at least one mission before starting with players."}
         </p>
       )}
+      <MissionPresets key={game.id} game={game} access={access} action={action} busy={busy} />
       <div className={lobby ? "roster-layout" : ""}>
         <section className="panel roster" aria-label="Mission list">
           {!missions.length ? (

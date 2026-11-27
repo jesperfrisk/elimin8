@@ -58,6 +58,12 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
+- Built-in mission presets (#75): organizers can select laugh, high-five,
+  Cheers and selfie tasks in the lobby, then explicitly add them to that
+  game's mission list alongside custom entries. They use the existing
+  enable/disable and assignment rules, remain hidden from players and public
+  views, and do not alter another game's missions. Rejected saves retain the
+  selection for retry; successful saves clear it before the game refresh.
 - Public live board UI (#39): `#/board/<gameId>` is a full-screen, read-only
   wall display for a TV or phone, with no login and no app chrome. It reads
   only the public board endpoint and subscribes anonymously to the board

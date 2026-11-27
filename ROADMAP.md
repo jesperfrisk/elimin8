@@ -84,7 +84,7 @@ Joining and recovery:
 Eliminations and missions:
 
 - [ ] Notify an eliminated player that they are out, who eliminated them, and how (the mission used); the accept/decline step before elimination already exists
-- [ ] Mission presets (e.g. make someone laugh, high five, cheers, selfie) selectable when configuring a lobby
+- [x] Mission presets (e.g. make someone laugh, high five, cheers, selfie) selectable when configuring a lobby (#75)
 - [ ] Dynamic targets and missions: only the *current* target can be eliminated, and a player's target and mission may change during play
 
 Media:
