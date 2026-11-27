@@ -48,8 +48,11 @@ uses `--match-head-commit`).
    - Scope: only the issue's "Owns files" (plus minimal shared edits); no
      unrelated refactors; no committed `.env`/secrets/`.claude/worktrees`.
    - Correctness, error handling, concurrency (per-game mutex + revision),
-     tests that assert behaviour, README/CHANGELOG/ROADMAP updated where
-     behaviour changed.
+     tests that assert behaviour, README updated where behaviour changed.
+   - **Docs gate:** the PR adds a `CHANGELOG.md` entry under `## Unreleased`
+     citing the issue number (unless it is pure CI/tooling and says so), and
+     ticks or annotates the matching `ROADMAP.md` item. A missing entry is a
+     `CHANGES` finding, not a nit.
    Comment only on what matters: bugs, rule violations, missing tests. No nits
    that gofmt/vet/CI already cover.
 4. **Leave the verdict** (one comment per head SHA, via `gh pr comment`):
@@ -66,6 +69,11 @@ uses `--match-head-commit`).
    sleep/poll). If the PR is a draft with LGTM + green CI, run
    `gh pr ready <n>` first (the script refuses drafts). Run `.claude/scripts/merge-to-dev.sh <n>`. If it refuses,
    report why and move on; fix nothing yourself.
+   **Close the issue.** GitHub only honours `Closes #n` for merges into the
+   default branch, and these PRs merge into `dev`, so after the script
+   succeeds run `gh issue close <n> --comment "Fixed by #<pr> (merged into dev)."`
+   for every issue the PR closes (and remove the `in-progress` label). Verify
+   with `gh issue view <n> --json state`.
 6. After a merge, other open PRs may now conflict:
    `gh pr list --base dev --json number,mergeable`; comment
    `pr-reviewer: CONFLICT <sha>` on newly conflicting ones.

@@ -7,6 +7,10 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Fixed
 
+- Reconcile Phase 1 documentation with shipped behavior (#46): correct
+  usage and privacy descriptions for teams, timers, kill counts and board
+  access, and add a [capability-by-capability verification checklist](ROADMAP.md#phase-1-implementation-and-verification)
+  with merged implementation, regression tests and remaining runtime checks.
 - After a team game starts, a player's own-team list (`me.team.members`) no
   longer includes invitees who never joined (#51). Lobby setup can assign
   unjoined invitees to a team, but starting freezes the roster to the joined
@@ -40,19 +44,51 @@ Notable changes and the reasoning behind them. Format loosely follows
   conflict, the backend could no longer reach it. `MONGODB_URI` now always
   targets `mongodb:27017` regardless of the host mapping.
 
+### Changed
+
+- Login and game-creation rate limits are now keyed by a validated client
+  address instead of the socket peer (#52), so players behind the Compose
+  Nginx proxy no longer share one bucket. `TRUSTED_PROXIES` (comma-separated
+  IPs/CIDRs; default empty = trust nothing, ignore `X-Forwarded-For`) lists
+  the proxies whose forwarded header is believed; it is read right to left,
+  skipping trusted hops, and a malformed value stops startup. A fixed
+  aggregate cap of 600 attempts per minute per endpoint still bounds code
+  hashing across many clients. 429 and `Retry-After` are unchanged.
+  `compose.yaml` trusts the private Docker ranges by default.
+
 ### Added
 
-- Phase 1 gameplay: manual/random team setup and team-safe victim circles,
-  two-step confirmed withdrawals without a kill, an authenticated status-only
-  Kill Board, private confirmed-kill tracking, optional server-authoritative
-  timers, individual/team survival winners, and final results with timed-game
-  scores and ties. Kill counts remain hidden from every role during play;
-  configured own teams are visible in the lobby. See the
-  [Phase 1 verification checklist](ROADMAP.md#phase-1-implementation-and-verification)
-  for merged implementation and tests, including resolved acceptance fixes
-  #43, #44 and #45. Proxy login isolation (#52) is also merged in PR #66;
-  runtime freshness remains tracked in #35, and deployed proxy configuration
-  verification remains noted in the backend README.
+- Optional player photos, delivered as three backend slices of #37 (the photo
+  UI, #41, has not shipped yet):
+  - Private local RustFS object storage in Compose and an S3 adapter (#53).
+    Native development can leave storage disabled.
+  - Authorized photo upload, replace, remove and read (#54): JPEG/PNG/WebP up
+    to 5 MiB is decoded, rotated, stripped of EXIF/GPS and re-encoded as a
+    JPEG of at most 400px. Players manage their own photo, organizers any
+    player's; reads use opaque IDs and never expose bucket paths.
+  - Restart-safe retention (#55): photos expire 24 hours after the game ends
+    (`PHOTO_RETENTION_HOURS`), expired reads return 404 before the sweep
+    runs, and a startup plus periodic sweep deletes every object under the
+    game's prefix, including replaced and orphaned uploads.
+- Post-game recap endpoint (#38): `GET /api/games/{id}/recap` (organizer and
+  participants, ended games only) returns the summary, leaderboard,
+  elimination timeline and awards, naming subjects but never killers or
+  pairs. Withdrawals appear in the timeline and are not kills.
+- Game results (#20): when a game ends, the server stores the final result
+  once and serves it to everyone in the game; a results screen shows the
+  winner or winners, ties and standings with confirmed kills.
+- Winner detection (#19): the server ends the game when one player (or one
+  team, including a team with an unbeatable majority) remains, after every
+  confirmed elimination and withdrawal.
+- Privacy-safe Kill Board (#18): `GET /api/games/{id}/killboard` lists names
+  and active/eliminated/withdrawn status in name order, with a live panel in
+  the game view.
+- Confirmed player withdrawals (#13): two-step withdrawal that is not a kill;
+  the withdrawing player's hunter inherits their victim and mission.
+- Private kill tracking (#14): accepted eliminations increment the killer's
+  confirmed kills in the same revision-checked write. Totals feed the
+  results and are not exposed elsewhere.
+
 - Public live board API (#36): `GET /api/board/{gameId}` and an anonymous,
   read-only MQTT topic `boards/{gameId}/updates` expose only names, status, a
   stable display number, the active count and the timer, so a TV can watch a

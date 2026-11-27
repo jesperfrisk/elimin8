@@ -110,8 +110,16 @@ Target **<= ~150k tokens** for the whole ticket. To stay inside it:
    release the claim and report `NEEDS-INPUT` with the exact question instead.
 3. Implement the thinnest vertical slice satisfying the acceptance criteria.
    Add/adjust tests next to existing ones (Go: `*_test.go` beside the code;
-   e2e: `frontend/tests/*.spec.js`). Update README/CHANGELOG only where
+   e2e: `frontend/tests/*.spec.js`). Update README only where
    behaviour or setup actually changed.
+3a. **Docs are part of done, in the same PR:**
+   - Add a `CHANGELOG.md` entry under `## Unreleased` (Added / Changed /
+     Fixed) citing the issue number and the user-visible behaviour or config
+     (e.g. new env vars). Skip only for pure CI/tooling changes with no
+     shipped behaviour, and say so in the PR.
+   - Tick the matching `ROADMAP.md` checkbox if the ticket completes a roadmap
+     item. If it only completes part (e.g. backend without UI), leave it
+     unchecked and annotate what shipped and what is pending.
 4. Verify with `make check` (gofmt, vet, backend tests, frontend build). Run
    `make frontend-test` only if you changed frontend behaviour and the Docker
    stack is available; otherwise say it was not run.

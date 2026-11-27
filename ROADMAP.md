@@ -89,9 +89,9 @@ Eliminations and missions:
 
 Media:
 
-- [ ] Upload a photo/selfie per game and per temporary player account
-- [ ] Object storage (RustFS or another S3-compatible store) in the Docker Compose infrastructure
-- [ ] Delete all uploaded images 24 hours after the game ends (configurable retention; #37 / #55)
+- [ ] Upload a photo/selfie per game and per temporary player account (backend shipped in #54; UI pending in #41)
+- [x] Object storage (RustFS or another S3-compatible store) in the Docker Compose infrastructure
+- [x] Delete all uploaded images 24 hours after the game ends (configurable retention, `PHOTO_RETENTION_HOURS`; #37 / #55)
 
 Developer experience:
 
