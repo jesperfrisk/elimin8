@@ -71,7 +71,7 @@ feature. Phase 2/3 work below retains its existing scope.
 ## Phase 2: Improved Experience
 
 - [ ] Live game dashboard (partly delivered: public board API #36, board UI #39 and the elimination moment #40; photos on tiles #41 remain)
-- [ ] Advanced post-game statistics
+- [x] Advanced post-game statistics (recap API #38/#85, recap UI #42)
 
 ## Phase 3: Frictionless Joining and Richer Play
 

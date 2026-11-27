@@ -1,0 +1,73 @@
+/* Post-game recap: dark, lime for winners, red for eliminations. Shared by the
+   board (TV) and the game page. */
+.recap {
+  --recap-lime: var(--accent, #b6ff3b);
+  --recap-red: var(--eliminated, #ff5c6a);
+  --recap-card: rgba(255, 255, 255, 0.06);
+  --recap-line: rgba(255, 255, 255, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.8rem, 1.6vw, 2rem);
+  color: #f2f4f7;
+  font-size: clamp(1rem, 1.3vw, 1.9rem);
+}
+.recap-panel { background: #0d1117; border-radius: 12px; }
+.recap h2, .recap h3 { margin: 0; }
+.recap h3 { font-size: 1.1em; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.6em; }
+.recap-hero { text-align: center; padding: clamp(0.6rem, 2vw, 2.5rem) 1rem; }
+.recap-kicker { margin: 0; color: var(--recap-red); letter-spacing: 0.3em; text-transform: uppercase; }
+.recap-hero h2 { font-size: clamp(1.8rem, 4.5vw, 5rem); color: var(--recap-lime); }
+.recap-winners { margin: 0.6em 0; display: flex; flex-wrap: wrap; gap: 1em; justify-content: center; }
+.recap-winners li { display: flex; align-items: center; gap: 0.6em; font-size: clamp(1.4rem, 3.4vw, 4rem); }
+.recap-avatar { display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%; border: 3px solid var(--recap-lime); font-size: 0.6em; }
+.recap-reason, .recap-tie { margin: 0.3em 0; }
+.recap-grid { display: grid; gap: clamp(0.6rem, 1.2vw, 1.6rem); grid-template-columns: 1fr; }
+@media (min-width: 900px) { .recap-grid { grid-template-columns: 1fr 1fr; } }
+.recap-wide { grid-column: 1 / -1; }
+.recap-card { background: var(--recap-card); border: 1px solid var(--recap-line); border-radius: 12px; padding: clamp(0.7rem, 1.4vw, 1.6rem); }
+.recap-empty { margin: 0; opacity: 0.75; }
+.recap ol, .recap ul { list-style: none; margin: 0; padding: 0; }
+.recap-bars li { display: grid; grid-template-columns: 2.2em minmax(0, 1fr) minmax(4em, 2fr) 5.5em; align-items: center; gap: 0.6em; padding: 0.25em 0; }
+.recap-rank { opacity: 0.7; text-align: right; }
+.recap-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recap-bar { display: block; height: 0.9em; background: var(--recap-line); border-radius: 99px; overflow: hidden; }
+.recap-bar i { display: block; height: 100%; background: repeating-linear-gradient(45deg, var(--recap-lime) 0 8px, #8fd12b 8px 16px); border-radius: 99px; transform-origin: left; }
+.recap-count { text-align: right; font-variant-numeric: tabular-nums; }
+.recap-timeline li { display: grid; grid-template-columns: 4.5em minmax(0, 1fr) 6.5em; grid-template-areas: "t n e" "k k k"; gap: 0.1em 0.6em; padding: 0.35em 0; border-top: 1px solid var(--recap-line); }
+.recap-time { grid-area: t; font-variant-numeric: tabular-nums; }
+.recap-timeline .recap-name { grid-area: n; }
+.recap-event { grid-area: e; text-align: right; font-weight: 700; }
+.recap-timeline .eliminated .recap-event { color: var(--recap-red); }
+.recap-timeline .withdrew .recap-event { color: #aab2bd; font-style: italic; }
+.recap-track { grid-area: k; position: relative; height: 4px; background: var(--recap-line); border-radius: 2px; }
+.recap-track i { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--recap-red); transform: rotate(45deg); }
+.recap-timeline .withdrew .recap-track i { background: transparent; border: 2px solid #aab2bd; border-radius: 50%; transform: none; }
+.recap-awards { display: grid; gap: clamp(0.6rem, 1.2vw, 1.6rem); grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+.recap-awards li { display: flex; flex-direction: column; gap: 0.2em; }
+.recap-award-title { color: var(--recap-lime); font-size: 0.8em; letter-spacing: 0.1em; text-transform: uppercase; }
+.recap-awards strong { font-size: 1.4em; overflow-wrap: anywhere; }
+.recap-award-detail { opacity: 0.8; font-variant-numeric: tabular-nums; }
+.recap-summary { display: flex; flex-wrap: wrap; gap: 1.2em 2.4em; margin: 0; }
+.recap-summary div { min-width: 6em; }
+.recap-summary dt { opacity: 0.7; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.08em; }
+.recap-summary dd { margin: 0; font-size: 1.8em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.recap-tables summary { cursor: pointer; }
+@media (max-width: 520px) {
+  .recap-bars li { grid-template-columns: 2em minmax(0, 1fr) 4.5em; }
+  .recap-bars .recap-bar { grid-column: 2 / -1; grid-row: 2; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .recap-hero, .recap-grid > * {
+    animation: recap-in 0.6s ease-out both;
+    animation-delay: calc(var(--i, 0) * 0.25s);
+  }
+  .recap-bar i { animation: recap-grow 0.9s ease-out both; animation-delay: 0.5s; }
+}
+@keyframes recap-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes recap-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Board placement: the recap replaces the player grid and scrolls on its own. */
+.board-recap-toggle { display: flex; justify-content: center; padding: 0.4rem; }
+.board .board-recap { max-width: none; width: 100%; margin: 0; box-sizing: border-box; }
+.recap-summary dt, .recap-summary dd { line-height: 1.2; }
+.board-recap { flex: 1; min-height: 0; overflow-y: auto; padding: clamp(0.5rem, 1.2vw, 1.4rem); }

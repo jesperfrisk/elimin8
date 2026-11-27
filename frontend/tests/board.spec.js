@@ -130,6 +130,9 @@ test("public board: lobby, live elimination and withdrawal, ended state, 404 and
     await eliminate();
     await expect(page.locator('.tile[data-status="eliminated"]')).toHaveCount(2);
     await expect(page.getByRole("region", { name: "Game over" })).toBeVisible();
+    // The public recap replaces the grid; the players stay one click away.
+    await expect(page.getByTestId("recap")).toBeVisible();
+    await page.getByRole("button", { name: "Show players" }).click();
     await expect(page.locator(".tile.survivor")).toHaveCount(1);
     await expect(page.locator(".tile.survivor")).toContainText(killer.game.me.name);
 

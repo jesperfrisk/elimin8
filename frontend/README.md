@@ -47,6 +47,7 @@ make frontend-build
 | `slots.jsx` | Extension points for new panels (below) |
 | `common.jsx` | Shared helpers: `PageHeading`, `CopyButton`, `formatDate` |
 | `Board.jsx`, `board.css`, `boardLayout.js` | Public live board (`#/board/<gameId>`), its skin, and pure layout helpers (tile fitting, initials, avatar colour) |
+| `Recap.jsx`, `recap.css`, `recapData.js` | Post-game recap (winner, leaderboard, timeline, awards, summary) shown on the board and game pages once a game has ended |
 | `boardMotion.js`, `boardSound.js` | The elimination moment: pure timing and diff logic, and the isolated Web Audio tones (replaceable by real audio files) |
 | `api.js`, `useGame.js`, `gameActionError.js` | API client, game state and MQTT hook, error messages |
 
