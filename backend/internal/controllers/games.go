@@ -41,6 +41,7 @@ func (c *GameController) Register(mux *http.ServeMux) {
 	c.registerEliminations(mux)
 	c.registerTeams(mux)
 	c.registerWithdrawals(mux)
+	c.registerJoin(mux)
 	c.registerTimer(mux)
 	c.registerKillBoard(mux)
 	c.registerResults(mux)
