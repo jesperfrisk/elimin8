@@ -103,11 +103,14 @@ MQTT.js subscribes to the role-scoped topic returned by the API. Subscribe ackno
 
 ## End-to-end Checks
 
-Start the Docker stack, then run:
+Start the isolated test stack, then run the suite. `make e2e-up` applies `compose.e2e.yaml`, which raises the backend login limit to 600 attempts per minute for this stack only; the default of 30 is shared by every browser behind Nginx and the full suite exceeds it, causing unrelated HTTP 429 failures. Fixture logins assert a successful response, so a rate-limit failure is reported at the login rather than later.
 
 ```sh
+make e2e-up
 make frontend-test
 ```
+
+The test stack uses the separate `elimin8-e2e` Compose project and its own database and storage volumes, so it does not raise the login limit on the normal `elimin8` stack. Stop the normal stack first to free its host ports, or override `MONGODB_PORT`, `BACKEND_PORT`, `FRONTEND_PORT`, and `PHOTO_STORAGE_PORT` and set `E2E_BASE_URL` to the test frontend. Stop the test stack with `docker compose -p elimin8-e2e -f compose.yaml -f compose.e2e.yaml down`.
 
 Tests cover real organizer/player browser contexts, mission batches and partial-failure recovery, mission toggles and persistence, joined-only start, MQTT lifecycle updates, assigned-target enforcement, elimination confirmation/decline/transfers, failed-response recovery, final victory, reconnect recovery, topic isolation, code reset, and API permissions. On Windows they use installed Microsoft Edge; elsewhere run `npx playwright install chromium` first. Override the browser with `PLAYWRIGHT_CHANNEL` and the server with `E2E_BASE_URL`. Test games are created in the configured development database and ended after successful checks; existing games are not deleted.
 
