@@ -42,6 +42,16 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
+- Phase 1 gameplay: manual/random team setup and team-safe victim circles,
+  two-step confirmed withdrawals without a kill, an authenticated status-only
+  Kill Board, private confirmed-kill tracking, optional server-authoritative
+  timers, individual/team survival winners, and final results with timed-game
+  scores and ties. Kill counts remain hidden from every role during play;
+  configured own teams are visible in the lobby. See the
+  [Phase 1 verification checklist](ROADMAP.md#phase-1-implementation-and-verification)
+  for merged implementation and tests, including resolved acceptance fixes
+  #43, #44 and #45. Runtime freshness (#35) and proxy login isolation (#52)
+  remain tracked follow-ups.
 - Public live board API (#36): `GET /api/board/{gameId}` and an anonymous,
   read-only MQTT topic `boards/{gameId}/updates` expose only names, status, a
   stable display number, the active count and the timer, so a TV can watch a
