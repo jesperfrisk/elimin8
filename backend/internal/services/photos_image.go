@@ -48,6 +48,10 @@ func preparePhoto(ctx context.Context, data []byte) ([]byte, error) {
 	if config.Width <= 0 || config.Height <= 0 || config.Width > 16384 || config.Height > 16384 || int64(config.Width)*int64(config.Height) > maxPhotoPixels {
 		return nil, ErrPhotoTooLarge
 	}
+	orientation, err := photoOrientation(data, format)
+	if err != nil {
+		return nil, err
+	}
 	select {
 	case photoDecodeSlots <- struct{}{}:
 		defer func() { <-photoDecodeSlots }()
@@ -61,7 +65,10 @@ func preparePhoto(ctx context.Context, data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, ErrPhotoInvalid
 	}
-	width, height := config.Width, config.Height
+	if orientation != 1 {
+		source = orientedPhoto{source: source, orientation: orientation}
+	}
+	width, height := source.Bounds().Dx(), source.Bounds().Dy()
 	if width > 400 || height > 400 {
 		if width >= height {
 			height, width = max(1, height*400/width), 400
