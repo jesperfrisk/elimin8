@@ -13,6 +13,11 @@ Notable changes and the reasoning behind them. Format loosely follows
   participants. Included teammates stay listed after elimination or
   withdrawal, and the lobby view and the organizer's configuration are
   unchanged.
+- Clearing the game timer and deleting all teams did not persist in MongoDB
+  (#43): the repository used only `$set` with BSON `omitempty`, so a cleared
+  field stayed stored and reappeared on the next read. `Save` now `$unset`s
+  every absent top-level game field in the same revision-filtered atomic
+  update, leaving `publishedRevision` (the outbox) untouched.
 - Player mutations now revalidate the caller inside the revision-checked game write (#50). A report, response, withdrawal request or confirmation authorized before an organizer reset the player code, or whose access expired while it waited, is rejected as unauthorized and changes nothing, including after a revision-conflict retry. Actions committed before the reset stay valid, and new credentials work. Fresh requests, game scoping, organizer permissions and MQTT revocation are unchanged.
 
 - `MONGODB_URI` in `compose.yaml` pointed the backend at Mongo's
