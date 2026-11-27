@@ -44,6 +44,7 @@ func run() error {
 		}
 		photoRetention = retention
 		storageCtx, storageCancel := context.WithTimeout(ctx, 15*time.Second)
+		// Configured storage must pass private-store checks before the API starts.
 		store, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
 		storageCancel()
 		if err != nil {
