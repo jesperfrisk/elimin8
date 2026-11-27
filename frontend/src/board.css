@@ -1,0 +1,387 @@
+/* Live board skin (#/board/<gameId>). Kept in its own file so it does not
+   collide with the rest of the app. Built on the tokens in style.css
+   (--accent lime, --surface, --border, --muted) plus --eliminated. */
+
+.board {
+  --board-bg: #0b110e;
+  --board-ink: #eef1e9;
+  --board-strip: #070b09;
+  --board-grey: #aab3ad;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  color: var(--board-ink);
+  font-family: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+  background:
+    radial-gradient(120% 80% at 50% -10%, #1a2a20 0%, transparent 60%),
+    var(--board-bg);
+}
+.board h1,
+.board p {
+  margin: 0;
+  color: inherit;
+}
+
+/* ---------- header ---------- */
+.board-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem 2rem;
+  flex-wrap: wrap;
+  padding: clamp(0.6rem, 1.4vw, 1.5rem) clamp(0.8rem, 2vw, 2.5rem);
+  border-bottom: 1px solid var(--border);
+}
+.board-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+.board-brand {
+  font-size: clamp(0.7rem, 0.9vw, 1.1rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.board-brand b {
+  color: var(--accent);
+}
+.board-title h1 {
+  font-size: clamp(1.4rem, 3.2vw, 3.6rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+.board-stats {
+  display: flex;
+  gap: clamp(1rem, 3vw, 3.5rem);
+}
+.board-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.board-stat span {
+  font-size: clamp(0.65rem, 0.9vw, 1.1rem);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.board-stat strong {
+  font-size: clamp(1.8rem, 4.6vw, 5.2rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.board-stat strong small {
+  font-size: 0.4em;
+  color: var(--muted);
+  font-weight: 500;
+}
+.board-timer strong {
+  color: var(--board-ink);
+}
+.board-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+.board-tools button {
+  padding: 0.55rem 0.95rem;
+  font-size: 0.9rem;
+}
+.board-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: clamp(0.8rem, 1vw, 1.2rem);
+  font-weight: 600;
+}
+.board-live i {
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.board-live.ok {
+  color: var(--accent);
+  border-color: rgba(197, 244, 120, 0.4);
+}
+.board-live.ok i {
+  background: var(--accent);
+}
+/* Not connected: unmistakable from across a room, and text, not just colour. */
+.board-live.warn {
+  color: #ffd27a;
+  border-color: #ffd27a;
+  background: rgba(255, 210, 122, 0.1);
+}
+.board-live.warn i {
+  background: #ffd27a;
+}
+
+@media (max-width: 700px) {
+  .board-header {
+    gap: 0.5rem 0.8rem;
+  }
+  .board-title {
+    flex: 1 1 8rem;
+  }
+  .board-tools {
+    order: 2;
+    gap: 0.5rem;
+  }
+  .board-stats {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: space-between;
+  }
+  .board-stat {
+    align-items: flex-start;
+  }
+}
+
+/* ---------- ended banner ---------- */
+.board-ended {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.2rem;
+  padding: clamp(0.4rem, 1vw, 1rem) 1rem;
+  background: linear-gradient(90deg, transparent, rgba(255, 92, 106, 0.16), transparent);
+  border-bottom: 1px solid rgba(255, 92, 106, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+.board-ended strong {
+  font-size: clamp(1.2rem, 3vw, 3.4rem);
+  color: var(--eliminated);
+}
+.board-ended span {
+  font-size: clamp(0.8rem, 1.4vw, 1.6rem);
+  color: var(--accent);
+}
+
+/* ---------- grid area ---------- */
+.board .board-main {
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  padding: clamp(0.5rem, 1.2vw, 1.4rem);
+  display: flex;
+}
+.board .board-main.scroll {
+  overflow-y: auto;
+  display: block;
+}
+.board-grid {
+  list-style: none;
+  margin: auto;
+  padding: 0;
+  display: grid;
+  justify-content: center;
+  align-content: center;
+}
+.board-main.scroll .board-grid {
+  margin: 0 auto;
+}
+
+/* ---------- poster tile ---------- */
+.tile {
+  --h: var(--hue, 120);
+  position: relative;
+  width: var(--tile);
+  aspect-ratio: 3 / 4;
+  border-radius: calc(var(--tile) * 0.06);
+  overflow: hidden;
+  background: var(--board-strip);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 calc(var(--tile) * 0.12) rgba(197, 244, 120, 0.38);
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+}
+/* The avatar fills the tile. .tile-art is the box; the photo ticket swaps what
+   is inside .tile-face. Status effects dim the face and draw on the box. */
+.tile-art {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.tile-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(90% 70% at 50% 25%, hsl(var(--h) 60% 36%) 0%, transparent 70%),
+    hsl(var(--h) 50% 26%);
+  /* Both stops keep white initials at 3:1 or better for every hue (checked). */
+}
+.tile-initials {
+  font-size: calc(var(--tile) * 0.34);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+.tile-number {
+  position: absolute;
+  top: calc(var(--tile) * 0.05);
+  left: calc(var(--tile) * 0.05);
+  min-width: 2.1em;
+  padding: 0.12em 0.45em;
+  border-radius: 0.5em;
+  font-size: max(11px, calc(var(--tile) * 0.13));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  text-align: center;
+  color: #17240e;
+  background: var(--accent);
+}
+.tile-caption {
+  background: var(--board-strip);
+  padding: calc(var(--tile) * 0.04) calc(var(--tile) * 0.06) calc(var(--tile) * 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--tile) * 0.01);
+  min-width: 0;
+}
+.tile-name {
+  font-size: max(12px, calc(var(--tile) * 0.115));
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--board-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile-status {
+  font-size: max(10px, calc(var(--tile) * 0.075));
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* ---------- eliminated: dimmed, desaturated, red X + text ---------- */
+.tile.eliminated {
+  border-color: var(--eliminated);
+  box-shadow: none;
+}
+.tile.eliminated .tile-face,
+.tile.eliminated .tile-number {
+  filter: grayscale(1) brightness(0.55);
+}
+.tile.eliminated .tile-name {
+  color: var(--board-grey);
+}
+.tile.eliminated .tile-status {
+  color: var(--eliminated);
+}
+.tile.eliminated .tile-art::after {
+  --x: clamp(3px, calc(var(--tile) * 0.022), 10px);
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to top right, transparent calc(50% - var(--x)), var(--eliminated) calc(50% - var(--x)), var(--eliminated) calc(50% + var(--x)), transparent calc(50% + var(--x))),
+    linear-gradient(to bottom right, transparent calc(50% - var(--x)), var(--eliminated) calc(50% - var(--x)), var(--eliminated) calc(50% + var(--x)), transparent calc(50% + var(--x)));
+}
+
+/* ---------- withdrawn: grey and dashed, never a red X ---------- */
+.tile.withdrawn {
+  border-style: dashed;
+  border-color: var(--board-grey);
+  box-shadow: none;
+}
+.tile.withdrawn .tile-face,
+.tile.withdrawn .tile-number {
+  filter: grayscale(1) brightness(0.75);
+}
+.tile.withdrawn .tile-number {
+  background: var(--board-grey);
+}
+.tile.withdrawn .tile-name {
+  color: var(--board-grey);
+}
+.tile.withdrawn .tile-status {
+  color: var(--board-grey);
+}
+
+/* ---------- other states ---------- */
+.tile.survivor {
+  border-color: #fff;
+}
+.board-waiting {
+  margin: auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.board-waiting strong {
+  font-size: clamp(1.6rem, 4.5vw, 5rem);
+  letter-spacing: -0.03em;
+  color: var(--accent);
+}
+.board-waiting span {
+  font-size: clamp(0.9rem, 1.6vw, 2rem);
+  color: var(--muted);
+}
+.board-center {
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+}
+.board-center h1 {
+  font-size: clamp(1.8rem, 4vw, 3.4rem);
+}
+.board-center p {
+  color: var(--muted);
+}
+
+/* Link row in the organizer and player game views. */
+.board-link {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.2rem;
+  margin: -1.5rem 0 2.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.board-link a {
+  color: var(--accent);
+}
+
+/* Motion is decoration only: tiles change state without it. */
+@media (prefers-reduced-motion: no-preference) {
+  .tile:not(.eliminated):not(.withdrawn) {
+    animation: tile-glow 3.2s ease-in-out infinite;
+  }
+  .board-live.warn i {
+    animation: board-blink 1.2s ease-in-out infinite;
+  }
+}
+@keyframes tile-glow {
+  50% {
+    box-shadow: 0 0 calc(var(--tile) * 0.2) rgba(197, 244, 120, 0.55);
+  }
+}
+@keyframes board-blink {
+  50% {
+    opacity: 0.25;
+  }
+}

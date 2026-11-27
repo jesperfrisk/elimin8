@@ -9,6 +9,7 @@
   --muted: #99aa9e;
   --border: #344237;
   --surface: #1b2720;
+  --eliminated: #ff5c6a;
 }
 * {
   box-sizing: border-box;
