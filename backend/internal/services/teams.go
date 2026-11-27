@@ -231,9 +231,17 @@ func teamViewFor(g *models.Game, playerID string) *models.TeamView {
 		}
 	}
 	for _, p := range g.Players {
-		if p.TeamID == mine.TeamID {
-			view.Members = append(view.Members, models.VictimView{ID: p.ID, Name: p.Name})
+		if p.TeamID != mine.TeamID {
+			continue
 		}
+		// Lobby setup may assign invitees who never join. Starting freezes the
+		// roster to the joined participants, and an excluded invitee must not
+		// appear as a teammate afterwards. Included teammates stay listed after
+		// they are eliminated or withdraw, so this checks inclusion, not life.
+		if g.StartedAt != nil && !p.Included {
+			continue
+		}
+		view.Members = append(view.Members, models.VictimView{ID: p.ID, Name: p.Name})
 	}
 	return view
 }
