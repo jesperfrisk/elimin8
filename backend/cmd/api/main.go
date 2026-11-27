@@ -71,6 +71,7 @@ func run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health/live", health.Liveness)
 	mux.HandleFunc("GET /api/health/ready", health.Readiness)
+	mux.HandleFunc("GET /api/version", controllers.NewVersionController().Version)
 	gameRepo := mongodb.NewGameRepository(db)
 	indexCtx, indexCancel := context.WithTimeout(ctx, 10*time.Second)
 	err = gameRepo.EnsureIndexes(indexCtx)
