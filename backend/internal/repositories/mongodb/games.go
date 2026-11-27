@@ -3,6 +3,8 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/jesperfrisk/elimin8/backend/internal/models"
@@ -54,22 +56,63 @@ func (r *GameRepository) ByCode(ctx context.Context, code string) (*models.Game,
 	return &g, mapError(err)
 }
 
-func (r *GameRepository) Save(ctx context.Context, g *models.Game, previous int64) error {
+// gameFieldNames lists every top-level BSON field of models.Game, so Save can
+// remove the optional ones the service has cleared.
+var gameFieldNames = func() []string {
+	t := reflect.TypeOf(models.Game{})
+	names := make([]string, 0, t.NumField())
+	for i := 0; i < t.NumField(); i++ {
+		name, _, _ := strings.Cut(t.Field(i).Tag.Get("bson"), ",")
+		if name != "" && name != "-" {
+			names = append(names, name)
+		}
+	}
+	return names
+}()
+
+// saveUpdate builds the single-document update for Save. Optional fields use
+// BSON omitempty, so a cleared value is absent from the marshaled document and
+// a bare $set would leave the old value stored. Every top-level field that is
+// absent therefore gets an explicit $unset in the same atomic update.
+func saveUpdate(g *models.Game) (bson.M, error) {
 	data, err := bson.Marshal(g)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Leave room under MongoDB's 16 MiB document limit for future metadata.
 	if len(data) > 12*1024*1024 {
-		return services.ErrInvalid
+		return nil, services.ErrInvalid
 	}
 	var fields bson.M
 	if err = bson.Unmarshal(data, &fields); err != nil {
-		return err
+		return nil, err
 	}
+	// _id is immutable and publishedRevision belongs to the outbox (see
+	// Published), so neither is ever written or removed here.
 	delete(fields, "_id")
 	delete(fields, "publishedRevision")
-	result, err := r.games.UpdateOne(ctx, bson.M{"_id": g.ID, "revision": previous}, bson.M{"$set": fields})
+	update := bson.M{"$set": fields}
+	unset := bson.M{}
+	for _, name := range gameFieldNames {
+		if name == "_id" || name == "publishedRevision" {
+			continue
+		}
+		if _, ok := fields[name]; !ok {
+			unset[name] = ""
+		}
+	}
+	if len(unset) > 0 {
+		update["$unset"] = unset
+	}
+	return update, nil
+}
+
+func (r *GameRepository) Save(ctx context.Context, g *models.Game, previous int64) error {
+	update, err := saveUpdate(g)
+	if err != nil {
+		return err
+	}
+	result, err := r.games.UpdateOne(ctx, bson.M{"_id": g.ID, "revision": previous}, update)
 	if err != nil {
 		return mapError(err)
 	}
