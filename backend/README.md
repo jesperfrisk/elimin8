@@ -88,10 +88,11 @@ Request flow: HTTP request -> controller -> service -> repository -> MongoDB.
 
 ## MongoDB
 
-MongoDB currently stores two collections:
+MongoDB currently stores three collections:
 
 - `games`: game details, unique invitation code, organizer-code hash, lifecycle timestamps, embedded player roster, revision, and last published revision. Each player stores their name, private-code hash, credential version, joined timestamp, and inclusion flag.
 - `game_access`: hashed temporary bearer tokens, scoped game/player identity, credential version, and expiry. A TTL index removes expired entries; authorization also checks expiry directly.
+- `player_sessions`: separate hashed remembered-player credentials with game/player identity, credential version, creation time and fixed expiry. An absolute-expiry TTL index cleans them up; application validation enforces expiry even if TTL deletion is delayed. These credentials cannot authenticate bearer or MQTT requests.
 
 **Saving and optional fields.** `GameRepository.Save` is one revision-filtered `updateOne`. Optional top-level `Game` fields use BSON `omitempty`, so a value the service clears (the timer, all teams) is simply absent from the marshaled document, and a bare `$set` would leave the old value stored. `Save` therefore adds a `$unset` for every top-level `Game` field that is absent from the document, in the same atomic update. The list of fields comes from the `Game` struct by reflection, so a new optional field is covered automatically. `_id` and `publishedRevision` are never written or unset by `Save`: the outbox field is only advanced by `Published`. Audit of the optional top-level fields: `startedAt`, `endedAt`, `winnerId`, `winnerKind`, `mode`, `teams`, `timer`, `endReason`, `result` and `withdrawals` are all handled this way. Nested optional fields (for example `Player.TeamID` or `WithdrawnAt`) need nothing extra, because `players` is always written as a whole array and replaces the stored one. No remaining cases.
 
@@ -171,6 +172,49 @@ Anonymous creation/login attempts are limited per client address and endpoint (3
 The client address is the TCP peer unless that peer is listed in `TRUSTED_PROXIES` (comma-separated IPv4/IPv6 addresses or CIDRs). Unset, the secure default, trusts no proxy and ignores `X-Forwarded-For` entirely, so a spoofed header can never choose or rotate a bucket. For a trusted peer, `X-Forwarded-For` is read right to left (all header lines joined): trusted hops are skipped and the first untrusted address is the client, so entries a client forged on the left are never believed past an untrusted hop. A malformed entry stops the walk and the last valid hop is used. Malformed `TRUSTED_PROXIES` fails startup. Only list proxies that append the real peer address (Nginx's `$proxy_add_x_forwarded_for`, as in `frontend/nginx.conf`); never list a range that untrusted clients can connect from directly.
 
 Deployments: Compose sets `TRUSTED_PROXIES` to `172.16.0.0/12,192.168.0.0/16` (Docker's default bridge ranges, overridable in the root `.env`), so each browser behind the Nginx container has its own bucket. The backend's loopback port (`127.0.0.1:${BACKEND_PORT}`) is reachable only from the host. Native development leaves it empty, and Vite's dev proxy then makes all requests share `127.0.0.1`; this is fine for one developer. If you run Nginx outside Compose, set `TRUSTED_PROXIES` to its address. The browser suite logs in from one address, so run it against `make e2e-up`, which applies `compose.e2e.yaml` (limit 600); that override is test-only and not for a shared deployment. The Compose proxy setup was covered by unit/controller tests but not verified in a deployed Docker stack. Use HTTPS/WSS outside localhost and keep private codes out of logs and URLs.
+
+### Remembered-player foundation (#82; parent #71)
+
+Successful player code login/recovery at `POST /api/access` additionally sets
+`elimin8_remember_<gameId>`, a host-only HttpOnly `SameSite=Lax` cookie scoped to
+`/api/games/<gameId>/session`. It contains a new random 240-bit opaque secret;
+only its SHA-256 hash is stored, in `player_sessions`. The existing Admission
+JSON is unchanged. Organizer logins/creation and failed logins issue no remember
+cookie. A storage failure returns a generic error instead of claiming successful
+cookie issuance. Login retains the existing rate limits and body bounds; each
+successful player login issues one credential, without a device cap.
+
+Max-Age (2,592,000 seconds) and Expires are set to 30 days from code login/recovery.
+Validation does not slide that deadline. Re-entering a code issues a new
+credential; overwritten records remain bounded by fixed expiry and TTL cleanup.
+Validation checks current player membership and credential version, so code
+regeneration invalidates old remembered credentials. Admitted eliminated/withdrawn
+players and ended games remain eligible. Issuance rechecks after persistence to
+reject a reset race. No multi-document transaction is needed: stale credentials
+are rejected on use against the authoritative current game.
+
+Direct HTTPS sets Secure. For TLS termination, configure `TRUSTED_PROXIES` with
+the immediate proxy and have it overwrite `X-Forwarded-Proto` with exactly
+`https` and preserve the browser's Host, including its port. Untrusted/malformed
+forwarding headers do not select HTTPS. Plain HTTP localhost/LAN development uses
+a non-Secure cookie; use HTTPS for shared deployments. The supplied Nginx API
+proxy preserves Host/port and overwrites forwarding headers; Vite preserves Host.
+Player browser code-login requests must have a matching Origin (scheme, host
+and port). Cross-site/opaque/malformed origins are rejected before login;
+non-browser clients without Origin remain supported.
+
+This is partial delivery: issuance, hashed persistence and reusable validation
+are implemented, but no route exchanges a cookie for access yet. #83 adds
+POST/DELETE session exchange, revocation and cookie-backed CSRF protection; #84
+adds browser restoration, renewal, recovery UI and sign-out. Until then the
+frontend still uses its existing short-lived access lifecycle. Existing private
+routes require bearer authorization; this cookie grants no access to them.
+Keep #71 open until all three slices are complete.
+
+Run the isolated persistence/index test from `backend/` with `MONGODB_TEST_URI`
+set and `go test ./internal/repositories/mongodb -run TestPlayerSessionMongo -count=1`.
+It uses and drops a uniquely named test database and otherwise skips.
+Service/controller tests need no running database.
 
 ## Public board
 
