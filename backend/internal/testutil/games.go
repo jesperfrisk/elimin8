@@ -25,6 +25,12 @@ func clone(g *models.Game) *models.Game {
 	data, _ := json.Marshal(g)
 	var result models.Game
 	_ = json.Unmarshal(data, &result)
+	// Mission snapshots are json:"-" (private); bson persists them in production.
+	for i := range g.Eliminations {
+		if i < len(result.Eliminations) {
+			result.Eliminations[i].Mission = g.Eliminations[i].Mission
+		}
+	}
 	return &result
 }
 func (m *Memory) Insert(_ context.Context, g *models.Game) error {

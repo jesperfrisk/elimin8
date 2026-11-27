@@ -1,5 +1,6 @@
 import React from "react";
 import { Eliminations } from "./Eliminations";
+import { EliminationNotice } from "./EliminationNotice";
 
 export function PlayerView({ game, access, action, busy }) {
   const lobby = game.status === "lobby";
@@ -54,6 +55,7 @@ export function PlayerView({ game, access, action, busy }) {
           </p>
         )}
       </section>
+      <EliminationNotice game={game} />
       <Eliminations game={game} access={access} action={action} busy={busy} />
     </>
   );

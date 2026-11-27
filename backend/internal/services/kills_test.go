@@ -135,7 +135,8 @@ func TestKillCountsNeverInAnyAPIResponse(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		lower := strings.ToLower(string(raw))
+		// me.elimination.confirmedAt is the victim's own receipt timestamp, not a kill count.
+		lower := strings.ReplaceAll(strings.ToLower(string(raw)), `"confirmedat"`, "")
 		for _, banned := range []string{"kills", "confirmed", "score"} {
 			if strings.Contains(lower, banned) {
 				t.Fatalf("role %q view contains %q: %s", role.PlayerID, banned, raw)
