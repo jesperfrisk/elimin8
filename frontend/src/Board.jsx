@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import mqtt from "mqtt";
 import { request } from "./api";
 import { formatRemaining, useCountdown } from "./Timer";
-import { fitGrid, initials, avatarHue, statusLabel } from "./boardLayout";
+import { fitGrid, avatarHue, statusLabel } from "./boardLayout";
 import { diffNewlyOut, momentDuration, advanceRun, EMPTY_RUN } from "./boardMotion";
 import { getBoardSound } from "./boardSound";
+import { PlayerAvatar } from "./PlayerAvatar";
 import "./board.css";
 
 // The public live board at #/board/<gameId>: read-only, no login. It calls only
@@ -308,10 +309,10 @@ function Tile({ player, ended, moment }) {
       title={player.name}
       data-status={player.status}
     >
-      {/* The avatar slot: the photo ticket fills .tile-face; initials are the fallback. */}
+      {/* The picture: the player's photo, or initials when they have none. It dims with .tile-face. */}
       <div className="tile-art" aria-hidden="true">
         <div className="tile-face">
-          <span className="tile-initials">{initials(player.name)}</span>
+          <PlayerAvatar className="avatar-fill" id={player.id} name={player.name} photoUrl={player.photoUrl} />
         </div>
       </div>
       <div className="tile-caption" aria-hidden="true">

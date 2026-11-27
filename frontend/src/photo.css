@@ -1,0 +1,96 @@
+/* Player pictures (PlayerAvatar) and the photo upload panel. */
+
+.avatar {
+  --h: var(--hue, 120);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--avatar-size, 2.4rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  color: #fff;
+  /* Both stops keep white initials at 3:1 or better for every hue (checked). */
+  background:
+    radial-gradient(90% 70% at 50% 25%, hsl(var(--h) 60% 36%) 0%, transparent 70%),
+    hsl(var(--h) 50% 26%);
+}
+.avatar-initials {
+  font-weight: 700;
+  font-size: calc(var(--avatar-size, 2.4rem) * 0.4);
+  letter-spacing: -0.04em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+/* The photo covers the initials; if it fails or expires, the initials show through. */
+.avatar-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Fills whatever box it is in (a board tile, the upload preview). */
+.avatar.avatar-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+  background: none;
+}
+
+/* Roster row: small avatar beside the name, photo controls beside Reset code. */
+.roster-player {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.roster-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.6rem;
+}
+
+/* Upload panel: the preview has the same shape as a tile on the board. */
+.photo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4rem;
+  align-items: flex-start;
+}
+.photo-poster {
+  position: relative;
+  width: min(11rem, 100%);
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--accent);
+  background: var(--surface);
+}
+.photo-poster img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-poster .avatar-initials {
+  font-size: 3.4rem;
+}
+.photo-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+.photo-actions p {
+  margin: 0;
+}
+.photo-error {
+  color: var(--eliminated);
+  font-weight: 600;
+}
