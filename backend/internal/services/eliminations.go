@@ -100,11 +100,18 @@ func transferElimination(g *models.Game, killer, victim *models.Player, now time
 	settleAfterTransfer(g, now)
 }
 
-// Claims survive reconnects but cannot be acted on once a participant is out.
+// Claims survive reconnects but cannot be acted on once a participant is out or
+// the killer's assignment moved to someone else (team-circle repair can change
+// a living hunter's target). A stale pending claim would otherwise block the
+// killer from reporting the new target.
 func cancelEliminations(g *models.Game, now time.Time) {
 	for i := range g.Eliminations {
 		claim := &g.Eliminations[i]
-		if claim.Status == "pending" && (g.Status != "active" || livingPlayer(g, claim.KillerID) == nil || livingPlayer(g, claim.VictimID) == nil) {
+		if claim.Status != "pending" {
+			continue
+		}
+		killer, victim := livingPlayer(g, claim.KillerID), livingPlayer(g, claim.VictimID)
+		if g.Status != "active" || killer == nil || victim == nil || killer.VictimID != claim.VictimID {
 			claim.Status, claim.ResolvedAt = "cancelled", &now
 		}
 	}
