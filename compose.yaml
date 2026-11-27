@@ -39,6 +39,7 @@ services:
       HTTP_ADDR: ":8080"
       MONGODB_URI: "mongodb://mongodb:27017"
       MONGODB_DATABASE: "elimin8"
+      PHOTO_RETENTION_HOURS: "${PHOTO_RETENTION_HOURS:-24}"
       PHOTO_STORAGE_ENDPOINT: "http://rustfs:9000"
       PHOTO_STORAGE_PROVIDER: "rustfs"
       PHOTO_STORAGE_REGION: "${PHOTO_STORAGE_REGION:-us-east-1}"

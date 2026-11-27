@@ -36,13 +36,19 @@ func run() error {
 	defer stop()
 
 	var photoStore storage.Store
+	var photoRetention time.Duration
 	if cfg.PhotoStorage.Endpoint != "" {
+		retention, err := config.LoadPhotoRetention()
+		if err != nil {
+			return err
+		}
+		photoRetention = retention
 		storageCtx, storageCancel := context.WithTimeout(ctx, 15*time.Second)
-		// Retain the validated private adapter for the photo API routes.
+		// Configured storage must pass private-store checks before the API starts.
 		store, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
 		storageCancel()
 		if err != nil {
-			return errors.New("private photo storage could not be initialized; check PHOTO_STORAGE settings and storage availability")
+			return errors.New("private photo storage could not be initialized during " + storage.InitializationStage(err) + "; check PHOTO_STORAGE settings, access permissions, and storage availability")
 		}
 		photoStore = store
 	}
@@ -68,6 +74,9 @@ func run() error {
 	gameRepo := mongodb.NewGameRepository(db)
 	indexCtx, indexCancel := context.WithTimeout(ctx, 10*time.Second)
 	err = gameRepo.EnsureIndexes(indexCtx)
+	if err == nil && photoStore != nil {
+		err = gameRepo.EnsurePhotoRetentionIndex(indexCtx)
+	}
 	indexCancel()
 	if err != nil {
 		return errors.New("game database indexes could not be initialized")
@@ -85,7 +94,10 @@ func run() error {
 	go gameService.RunTimerSweep(outboxCtx, 5*time.Second)
 	controllers.NewGameController(gameService).Register(mux)
 	if photoStore != nil {
-		controllers.NewPhotoController(gameService, services.NewPhotoService(gameService, photoStore)).Register(mux)
+		photos := services.NewPhotoService(gameService, photoStore)
+		photos.Retention = photoRetention
+		controllers.NewPhotoController(gameService, photos).Register(mux)
+		go services.NewPhotoRetentionService(gameService, gameRepo, photoStore, photoRetention).Run(outboxCtx, time.Minute)
 	}
 	mux.Handle("GET /api/mqtt", broker)
 
