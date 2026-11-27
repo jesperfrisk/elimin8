@@ -20,6 +20,9 @@ type Config struct {
 	// LoginRateLimit is the anonymous attempts allowed per remote address and
 	// endpoint each minute. It is bounded to [1, MaxLoginRateLimit].
 	LoginRateLimit int
+	// TrustedProxies is the raw TRUSTED_PROXIES list (IPs/CIDRs) whose
+	// X-Forwarded-For header is believed. Unset trusts no proxy.
+	TrustedProxies string
 	PhotoStorage   storage.S3Config
 }
 
@@ -29,6 +32,7 @@ func Load() Config {
 		MongoDBURI:      envOrDefault("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDBDatabase: envOrDefault("MONGODB_DATABASE", "elimin8"),
 		LoginRateLimit:  loginRateLimit(os.Getenv("LOGIN_RATE_LIMIT_PER_MINUTE")),
+		TrustedProxies:  os.Getenv("TRUSTED_PROXIES"),
 		PhotoStorage: storage.S3Config{
 			Endpoint:  os.Getenv("PHOTO_STORAGE_ENDPOINT"),
 			Provider:  envOrDefault("PHOTO_STORAGE_PROVIDER", "s3"),

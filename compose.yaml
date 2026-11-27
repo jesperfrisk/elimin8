@@ -39,6 +39,9 @@ services:
       HTTP_ADDR: ":8080"
       MONGODB_URI: "mongodb://mongodb:27017"
       MONGODB_DATABASE: "elimin8"
+      # Peers whose X-Forwarded-For is believed: the Nginx container on the
+      # Compose network (Docker's default private ranges). See backend/README.md.
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-172.16.0.0/12,192.168.0.0/16}"
       PHOTO_RETENTION_HOURS: "${PHOTO_RETENTION_HOURS:-24}"
       PHOTO_STORAGE_ENDPOINT: "http://rustfs:9000"
       PHOTO_STORAGE_PROVIDER: "rustfs"
