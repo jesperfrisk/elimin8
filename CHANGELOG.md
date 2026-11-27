@@ -13,6 +13,12 @@ Notable changes and the reasoning behind them. Format loosely follows
   participants. Included teammates stay listed after elimination or
   withdrawal, and the lobby view and the organizer's configuration are
   unchanged.
+- Pending elimination reports are now cancelled when team-circle repair gives
+  the killer a different target (#49). Previously a report whose killer and
+  victim were both still alive stayed pending, could not be accepted, and
+  blocked the killer from reporting the new target. The check runs in the same
+  revision-checked mutation as the transfer, so reconnects see the persisted
+  cancellation.
 - In team mode, a lone surviving player is now recorded as a win for their
   team (#44). `detectWinner` handled "one player left" before checking the
   game mode, so a team game ended with a player winner while the result still
