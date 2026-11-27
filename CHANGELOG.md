@@ -8,6 +8,12 @@ Notable changes and the reasoning behind them. Format loosely follows
 ### Added
 
 - Post-game recap UI (#42): once a game has ended, the public board (`#/board/<id>`, no login) and the organizer/player game pages show a recap with a winner hero, kill leaderboard (ties shown as ties), elimination timeline with `mm:ss` offsets, award cards and a game summary, with empty states and a data-table fallback. On the board it replaces the player grid ("Show players" toggles back). It consumes the existing recap routes and shows subjects only, never killers. Reduced motion disables the staggered reveal. Winners come from the server-calculated result, including team survival wins and timer ties with zero kills. Both recap routes expose only winner kind, ID and name after the game ends.
+- Remembered player session exchange and revocation (#83): matching-origin POST
+  `/api/games/{id}/session` returns short-lived player admission without extending
+  the original 30-day cookie. DELETE revokes that credential and its linked
+  admissions, clears only its game cookie and returns 204, including missing
+  cookies. Session-backed HTTP/MQTT access and mutation retries enforce expiry,
+  regeneration and revocation. Browser restoration/recovery remains #84.
 - Public board recap API (#85): unauthenticated `GET /api/board/{gameId}/recap` returns the same payload as the authenticated recap for ended games (409 before the end, 404 for unknown ids), reusing `RecapOf`, the board's per-IP rate limit and `Cache-Control: no-store`. Tests assert the exact keys and that no killer, mission, target, code or team-membership data appears.
 - Remembered-player credential foundation (#82, part of #71): player code login
   sets a game-scoped 30-day HttpOnly, SameSite-protected cookie, Secure over HTTPS

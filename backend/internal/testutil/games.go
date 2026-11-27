@@ -135,3 +135,26 @@ func (m *Memory) DeletePlayerSession(_ context.Context, hash string) error {
 	delete(m.Sessions, hash)
 	return nil
 }
+
+func (m *Memory) RevokePlayerSession(_ context.Context, hash string, now time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	session, exists := m.Sessions[hash]
+	if exists && session.RevokedAt == nil {
+		session.RevokedAt = &now
+		m.Sessions[hash] = session
+	}
+	return nil
+}
+
+func (m *Memory) BindAccessSession(_ context.Context, accessHash, sessionHash string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	a, exists := m.Access[accessHash]
+	if !exists || a.SessionHash != "" {
+		return services.ErrUnauthorized
+	}
+	a.SessionHash = sessionHash
+	m.Access[accessHash] = a
+	return nil
+}

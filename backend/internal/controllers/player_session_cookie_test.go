@@ -132,8 +132,8 @@ func TestPlayerLoginRememberCookieTransportOriginAndPrivacy(t *testing.T) {
 	for _, method := range []string{"POST", "DELETE"} {
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, httptest.NewRequest(method, "http://localhost/api/games/"+owner.Game.ID+"/session", nil))
-		if w.Code != 404 {
-			t.Fatal("session endpoints must remain in the next slice")
+		if w.Code != 403 {
+			t.Fatal("cookie-backed session endpoints must require Origin")
 		}
 	}
 }

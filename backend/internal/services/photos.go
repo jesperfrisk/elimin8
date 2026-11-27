@@ -60,6 +60,9 @@ func (s *PhotoService) validateAccess(ctx context.Context, g *models.Game, a mod
 	if a.PlayerID == "" {
 		return nil
 	}
+	if err := s.games.validateAccessSession(ctx, g, current); err != nil {
+		return err
+	}
 	for _, p := range g.Players {
 		if p.ID == a.PlayerID && p.CredentialVersion == a.Version && p.JoinedAt != nil && (g.Status == "lobby" || p.Included || g.StartedAt == nil) {
 			return nil

@@ -40,7 +40,7 @@ func (s *GameService) RequestWithdrawal(ctx context.Context, a models.Access) (m
 	}
 	request := models.WithdrawalRequest{Token: token, ExpiresAt: time.Now().UTC().Add(withdrawalTTL)}
 	_, err = s.mutate(ctx, a.GameID, func(g *models.Game) error {
-		if err := s.revalidatePlayer(g, a); err != nil {
+		if err := s.revalidatePlayer(ctx, g, a); err != nil {
 			return err
 		}
 		if g.Status != "active" || livingPlayer(g, a.PlayerID) == nil {
@@ -66,7 +66,7 @@ func (s *GameService) ConfirmWithdrawal(ctx context.Context, a models.Access, to
 	}
 	hash := HashToken(token)
 	_, err := s.mutate(ctx, a.GameID, func(g *models.Game) error {
-		if err := s.revalidatePlayer(g, a); err != nil {
+		if err := s.revalidatePlayer(ctx, g, a); err != nil {
 			return err
 		}
 		now := time.Now().UTC()

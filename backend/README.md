@@ -146,6 +146,8 @@ Game lifecycle, organizer rosters, lobby missions, manual/random teams, team-saf
 | --- | --- | --- |
 | POST | `/api/games` | Create a lobby; returns temporary organizer access and a one-time management code |
 | POST | `/api/access` | Log in with `invitationCode`, private `code`, and `role` (`organizer` or `player`); first player login joins the lobby |
+| POST | `/api/games/{id}/session` | Matching Origin and valid game remember cookie: exchange for player Admission; 401 for invalid/expired/revoked credentials; no cookie/expiry renewal |
+| DELETE | `/api/games/{id}/session` | Matching Origin: revoke the current game's remembered credential and its linked admissions, clear its cookie, return 204 (also when absent/unknown) |
 | GET | `/api/games/{id}` | Read the caller's authorized view. After a survival ending it also carries `endReason: "survival"` and `winner: { "kind": "player"\|"team", "id", "name" }` (`null` before the end; `winnerId` is set for player winners only) |
 | POST | `/api/games/{id}/players` | Organizer: add `{ "names": ["Alice", "Bob"] }`; returns generated private codes once |
 | POST | `/api/games/{id}/players/{player}/code` | Organizer: reset a player's code and revoke prior credentials |
@@ -173,7 +175,7 @@ The client address is the TCP peer unless that peer is listed in `TRUSTED_PROXIE
 
 Deployments: Compose sets `TRUSTED_PROXIES` to `172.16.0.0/12,192.168.0.0/16` (Docker's default bridge ranges, overridable in the root `.env`), so each browser behind the Nginx container has its own bucket. The backend's loopback port (`127.0.0.1:${BACKEND_PORT}`) is reachable only from the host. Native development leaves it empty, and Vite's dev proxy then makes all requests share `127.0.0.1`; this is fine for one developer. If you run Nginx outside Compose, set `TRUSTED_PROXIES` to its address. The browser suite logs in from one address, so run it against `make e2e-up`, which applies `compose.e2e.yaml` (limit 600); that override is test-only and not for a shared deployment. The Compose proxy setup was covered by unit/controller tests but not verified in a deployed Docker stack. Use HTTPS/WSS outside localhost and keep private codes out of logs and URLs.
 
-### Remembered-player foundation (#82; parent #71)
+### Remembered-player sessions (#82/#83; parent #71)
 
 Successful player code login/recovery at `POST /api/access` additionally sets
 `elimin8_remember_<gameId>`, a host-only HttpOnly `SameSite=Lax` cookie scoped to
@@ -203,13 +205,43 @@ Player browser code-login requests must have a matching Origin (scheme, host
 and port). Cross-site/opaque/malformed origins are rejected before login;
 non-browser clients without Origin remain supported.
 
-This is partial delivery: issuance, hashed persistence and reusable validation
-are implemented, but no route exchanges a cookie for access yet. #83 adds
-POST/DELETE session exchange, revocation and cookie-backed CSRF protection; #84
-adds browser restoration, renewal, recovery UI and sign-out. Until then the
-frontend still uses its existing short-lived access lifecycle. Existing private
-routes require bearer authorization; this cookie grants no access to them.
-Keep #71 open until all three slices are complete.
+`POST /api/games/{id}/session` exchanges that game's cookie for a fresh player
+Admission (bearer, expiry, MQTT fields and role-scoped game). It does not join or
+create a player or issue organizer access. Admission lasts at most 12 hours and
+is capped by the original remembered deadline. POST returns no Set-Cookie and
+never extends the 30-day period. Invalid, missing, expired, revoked or wrong-game
+credentials return 401, including when TTL deletion is delayed.
+
+Both POST and DELETE require exactly one matching Origin (scheme, host and port)
+and reject cross-site fetch metadata, opaque/malformed origins and missing Origin
+with 403. Non-browser callers must supply Origin for these cookie-backed routes;
+code login retains its no-Origin CLI contract above. Bodies are limited to 1 KiB
+and may be empty or `{}`. Duplicate game cookies are rejected with 401. Rate
+limits use the configured per-client allowance plus the aggregate safeguard,
+shared across game IDs for each method, returning 429 and Retry-After: 60.
+All responses are no-store. Other private HTTP/MQTT routes still require bearer
+access and never authenticate directly from cookies.
+
+DELETE returns 204 and clears the matching cookie name/path/flags, also when the
+cookie is absent, unknown or expired. It revokes only the current credential and
+admissions linked to it, preserving other devices/games and organizer access.
+New code-login admissions and resumed admissions carry a private source hash;
+HTTP/MQTT authorization and player/photo mutation retries recheck revocation,
+fixed expiry and current player version. Pre-existing unlinked admissions retain
+their original 12-hour expiry and code-reset rules.
+
+Revocation keeps its first timestamp until the original TTL deadline. It marks
+the credential first, then advances the game's revision before returning 204.
+A concurrent mutation must commit before that revision fence or retry and see
+revocation. Failure returns an error while the durable marker remains revoked;
+a retry finishes the fence without moving expiry or the first revocation time.
+This fail-closed ordering needs no multi-document transaction; game-domain
+changes remain single-document atomic writes.
+
+Browser restoration, renewal, recovery UI and sign-out remain #84. Until then the
+frontend uses its existing short-lived access lifecycle. Keep #71 open until all
+three slices are complete. The previously documented external HTTPS-terminator
+topology is outside the current local HTTP deployment scope.
 
 Run the isolated persistence/index test from `backend/` with `MONGODB_TEST_URI`
 set and `go test ./internal/repositories/mongodb -run TestPlayerSessionMongo -count=1`.

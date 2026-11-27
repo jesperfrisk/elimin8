@@ -39,4 +39,6 @@ type Access struct {
 	PlayerID  string    `bson:"playerId"`
 	Version   int       `bson:"version"`
 	ExpiresAt time.Time `bson:"expiresAt"`
+	// Links new player logins and renewals to their remembered credential.
+	SessionHash string `bson:"sessionHash,omitempty" json:"-"`
 }

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"time"
 
 	"github.com/jesperfrisk/elimin8/backend/internal/models"
@@ -25,12 +26,12 @@ func playerCredentialCurrent(g *models.Game, a models.Access) bool {
 // Authorize, not the injectable game clock) without changing any state. Access values
 // loaded from the repository always carry an expiry, so a zero ExpiresAt only
 // occurs for values built directly by in-process callers.
-func (s *GameService) revalidatePlayer(g *models.Game, a models.Access) error {
+func (s *GameService) revalidatePlayer(ctx context.Context, g *models.Game, a models.Access) error {
 	if !a.ExpiresAt.IsZero() && !time.Now().Before(a.ExpiresAt) {
 		return ErrUnauthorized
 	}
 	if !playerCredentialCurrent(g, a) {
 		return ErrUnauthorized
 	}
-	return nil
+	return s.validateAccessSession(ctx, g, a)
 }

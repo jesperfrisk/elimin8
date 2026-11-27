@@ -151,10 +151,10 @@ func (s *GameService) Authorize(ctx context.Context, token string) (models.Acces
 		return a, nil, err
 	}
 	if a.PlayerID != "" {
-		if playerCredentialCurrent(g, a) {
-			return a, g, nil
+		if err := s.revalidatePlayer(ctx, g, a); err != nil {
+			return a, nil, err
 		}
-		return a, nil, ErrUnauthorized
+		return a, g, nil
 	}
 	return a, g, nil
 }

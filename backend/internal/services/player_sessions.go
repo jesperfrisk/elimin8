@@ -16,6 +16,8 @@ type PlayerSessionRepository interface {
 	PutPlayerSession(context.Context, models.PlayerSession) error
 	GetPlayerSession(context.Context, string) (models.PlayerSession, error)
 	DeletePlayerSession(context.Context, string) error
+	RevokePlayerSession(context.Context, string, time.Time) error
+	BindAccessSession(context.Context, string, string) error
 }
 
 // IssuePlayerSession requires a current player admission. Its secret is returned
@@ -29,7 +31,7 @@ func (s *GameService) IssuePlayerSession(ctx context.Context, admissionToken str
 	if err != nil {
 		return "", models.PlayerSession{}, err
 	}
-	if a.PlayerID == "" {
+	if a.PlayerID == "" || a.SessionHash != "" {
 		return "", models.PlayerSession{}, ErrUnauthorized
 	}
 	secret, err := RandomCode(48)
@@ -41,6 +43,12 @@ func (s *GameService) IssuePlayerSession(ctx context.Context, admissionToken str
 	if err := store.PutPlayerSession(ctx, session); err != nil {
 		return "", models.PlayerSession{}, err
 	}
+	// Bind the freshly created code-login admission too, so forgetting this
+	// cookie revokes the browser's initial token as well as later renewals.
+	if err := store.BindAccessSession(ctx, a.Hash, session.Hash); err != nil {
+		_ = store.DeletePlayerSession(ctx, session.Hash)
+		return "", models.PlayerSession{}, err
+	}
 	// A code reset or expiry during persistence must not issue a usable cookie.
 	if _, err := s.ValidatePlayerSession(ctx, a.GameID, secret); err != nil {
 		_ = store.DeletePlayerSession(ctx, session.Hash)
@@ -49,8 +57,8 @@ func (s *GameService) IssuePlayerSession(ctx context.Context, admissionToken str
 	return secret, session, nil
 }
 
-// ValidatePlayerSession does not renew expiry or issue bearer access. The next
-// slice uses this foundation for the narrowly scoped session exchange route.
+// ValidatePlayerSession does not renew expiry or issue bearer access; it is
+// used by the narrowly scoped session exchange route.
 func (s *GameService) ValidatePlayerSession(ctx context.Context, gameID, secret string) (models.PlayerSession, error) {
 	if len(secret) != 48 || gameID == "" || len(gameID) > 128 {
 		return models.PlayerSession{}, ErrUnauthorized
@@ -68,7 +76,7 @@ func (s *GameService) ValidatePlayerSession(ctx context.Context, gameID, secret 
 		return models.PlayerSession{}, err
 	}
 	now := s.now()
-	if session.Hash != hash || session.GameID != gameID || session.PlayerID == "" || !now.Before(session.ExpiresAt) || now.Before(session.CreatedAt) || !session.ExpiresAt.Equal(session.CreatedAt.Add(RememberDuration)) {
+	if !validPlayerSessionAt(session, gameID, hash, now) {
 		return models.PlayerSession{}, ErrUnauthorized
 	}
 	g, err := s.repo.Get(ctx, gameID)
@@ -82,4 +90,8 @@ func (s *GameService) ValidatePlayerSession(ctx context.Context, gameID, secret 
 		return models.PlayerSession{}, ErrUnauthorized
 	}
 	return session, nil
+}
+
+func validPlayerSessionAt(session models.PlayerSession, gameID, hash string, now time.Time) bool {
+	return session.Hash == hash && session.GameID == gameID && session.PlayerID != "" && session.RevokedAt == nil && now.Before(session.ExpiresAt) && !now.Before(session.CreatedAt) && session.ExpiresAt.Equal(session.CreatedAt.Add(RememberDuration))
 }
