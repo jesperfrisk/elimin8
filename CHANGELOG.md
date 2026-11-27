@@ -8,6 +8,12 @@ Notable changes and the reasoning behind them. Format loosely follows
 ### Fixed
 
 - The browser suite no longer fails with HTTP 429 from its own fixture logins (#45). The anonymous login limit (30 per minute per address) stays the default; `LOGIN_RATE_LIMIT_PER_MINUTE` can override it, bounded to 1-600 (invalid values keep 30), and `compose.e2e.yaml` / `make e2e-up` set 600 for the isolated test stack only. Added tests for rejection, Retry-After and the bounds.
+- Pending elimination reports are now cancelled when team-circle repair gives
+  the killer a different target (#49). Previously a report whose killer and
+  victim were both still alive stayed pending, could not be accepted, and
+  blocked the killer from reporting the new target. The check runs in the same
+  revision-checked mutation as the transfer, so reconnects see the persisted
+  cancellation.
 - In team mode, a lone surviving player is now recorded as a win for their
   team (#44). `detectWinner` handled "one player left" before checking the
   game mode, so a team game ended with a player winner while the result still
