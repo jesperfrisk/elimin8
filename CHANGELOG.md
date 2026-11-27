@@ -7,6 +7,7 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
+- Local dev tooling (#105): `make dev` starts the stack and prints every local URL. Sample-data seeding stays planned in #96/#97. The stack now includes a mongo-express MongoDB web UI (`MONGO_UI_PORT`, default 8081, basic auth from required `MONGO_UI_USERNAME` / `MONGO_UI_PASSWORD`) and turns on RustFS's built-in console (`PHOTO_STORAGE_CONSOLE_PORT`, default 9001, `/rustfs/console/`, photo storage keys). Both bind to 127.0.0.1 only. `make up`, `make dev` and `make e2e-up` first run a host-port preflight (`scripts/check-ports.sh`, `make preflight`). It replaces Docker's unclear "port is already allocated" error with the clashing port, the `.env` variable to change and the Docker container holding it, and it never edits `.env`. **Existing `.env` files must add `MONGO_UI_USERNAME` and `MONGO_UI_PASSWORD`**, and must free or override ports 8081 and 9001.
 - Self-join backend (#72, part of #70): `POST /api/join` registers a player in an open
   lobby from the shared invitation code and a display name that is unique in the game
   (Unicode-normalized, case-folded and whitespace-collapsed, so "Alex", " alex " and

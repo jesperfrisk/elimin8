@@ -19,11 +19,15 @@ services:
     environment:
       RUSTFS_ACCESS_KEY: "${PHOTO_STORAGE_ACCESS_KEY:?Set PHOTO_STORAGE_ACCESS_KEY in .env}"
       RUSTFS_SECRET_KEY: "${PHOTO_STORAGE_SECRET_KEY:?Set PHOTO_STORAGE_SECRET_KEY in .env}"
-      RUSTFS_CONSOLE_ENABLE: "false"
       RUSTFS_ADDRESS: ":9000"
+      # Built-in web console for inspecting buckets/objects in local dev.
+      # Loopback only; log in with the photo storage access/secret key.
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
     command: ["/data"]
     ports:
       - "127.0.0.1:${PHOTO_STORAGE_PORT:-9000}:9000"
+      - "127.0.0.1:${PHOTO_STORAGE_CONSOLE_PORT:-9001}:9001"
     volumes:
       - rustfs_data:/data
     healthcheck:
@@ -32,6 +36,21 @@ services:
       timeout: 5s
       retries: 20
       start_period: 20s
+
+  # Local MongoDB web UI. Loopback only and behind basic auth: it can read and
+  # write every game and credential record, so never expose it beyond localhost.
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://mongodb:27017"
+      ME_CONFIG_BASICAUTH: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: "${MONGO_UI_USERNAME:?Set MONGO_UI_USERNAME in .env}"
+      ME_CONFIG_BASICAUTH_PASSWORD: "${MONGO_UI_PASSWORD:?Set MONGO_UI_PASSWORD in .env}"
+    ports:
+      - "127.0.0.1:${MONGO_UI_PORT:-8081}:8081"
+    depends_on:
+      mongodb:
+        condition: service_healthy
 
   backend:
     build:

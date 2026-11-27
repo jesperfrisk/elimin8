@@ -1,4 +1,4 @@
-.PHONY: up down logs ps build reset clean \
+.PHONY: up dev preflight down logs ps build reset clean \
 	backend-run backend-test backend-vet backend-fmt-check \
 	frontend-dev frontend-build frontend-test e2e-up check
 
@@ -10,9 +10,21 @@ check: backend-fmt-check backend-vet backend-test frontend-build
 BUILD_REVISION ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
 export BUILD_REVISION
 
-## Docker Compose stack (backend + frontend + mongodb)
-up:
+## Docker Compose stack (frontend, backend, mongodb, rustfs + the mongo-express
+## and RustFS console web UIs). Each start first checks host ports (preflight).
+up: preflight
 	docker compose up --build --wait
+
+## Start the stack and print every local URL (app, backend, web UIs).
+## Seeding sample games is planned (#96/#97); none is loaded yet.
+dev: up
+	@bash scripts/dev-urls.sh
+
+## Fail early, naming the .env variable, if a published host port is taken.
+## Pass compose flags via PREFLIGHT_ARGS (e2e-up does).
+PREFLIGHT_ARGS ?=
+preflight:
+	@bash scripts/check-ports.sh $(PREFLIGHT_ARGS)
 
 down:
 	docker compose down
@@ -63,8 +75,10 @@ frontend-build:
 	cd frontend && npm ci && npm run build
 
 ## Isolated stack for the browser suite: raises the login limit to 600/min (test-only)
+E2E_COMPOSE = -p elimin8-e2e -f compose.yaml -f compose.e2e.yaml
 e2e-up:
-	docker compose -p elimin8-e2e -f compose.yaml -f compose.e2e.yaml up --build --wait -d
+	@bash scripts/check-ports.sh $(E2E_COMPOSE)
+	docker compose $(E2E_COMPOSE) up --build --wait -d
 
 ## End-to-end tests (requires the stack from `make e2e-up`; plain `make up` hits the 30/min login limit)
 frontend-test:
