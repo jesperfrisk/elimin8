@@ -37,7 +37,9 @@ make logs
 make down
 ```
 
-`make down` (`docker compose down`) preserves database data. To deliberately delete all local database data, use `make clean` (`docker compose down --volumes`).
+`make down` (`docker compose down`) stops the stack and preserves all data.
+
+`make reset` is **destructive**: it runs `docker compose down --volumes --remove-orphans` for this project only (the `elimin8` Compose project, or the one named by `COMPOSE_PROJECT_NAME`, e.g. `make reset COMPOSE_PROJECT_NAME=elimin8-e2e`). It deletes the project's containers, network and both data volumes: MongoDB (games, access and recovery-session records) and RustFS (all uploaded photos). It also removes the local seed marker (`.dev-seed.json`, override with `SEED_MANIFEST=`) so a later `make dev` can seed again. It leaves the stack stopped and empty (it neither starts containers nor loads sample games), keeps source and `.env`, never prunes globally or touches other Docker projects, and is safe to repeat. Run it only for this project's local data, never against a shared or remote environment. It needs your `.env` (compose requires the photo storage keys). `make clean` is an alias for `make reset`. `make up` afterwards starts from empty data.
 
 See [backend setup](backend/README.md) and [frontend setup](frontend/README.md) for architecture, configuration, and development commands.
 

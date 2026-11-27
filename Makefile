@@ -1,4 +1,4 @@
-.PHONY: up down logs ps build clean \
+.PHONY: up down logs ps build reset clean \
 	backend-run backend-test backend-vet backend-fmt-check \
 	frontend-dev frontend-build frontend-test e2e-up check
 
@@ -21,9 +21,21 @@ ps:
 build:
 	docker compose build
 
-## Remove containers, networks, and the mongodb volume
-clean:
-	docker compose down -v
+## DESTRUCTIVE: remove this project's containers, networks and data volumes
+## (mongodb_data games/access records, rustfs_data photos) and leave it stopped
+## and empty. Scoped to the Compose project ("elimin8" from compose.yaml, or
+## COMPOSE_PROJECT_NAME / `make reset COMPOSE_PROJECT_NAME=elimin8-e2e`); never
+## prunes globally or touches other projects, .env or source. Does not start or
+## seed anything. Safe to repeat. SEED_MANIFEST is the local seed marker `make dev`
+## will write (path to agree with the seeding ticket); removing it lets the next
+## `make dev` seed again.
+SEED_MANIFEST ?= .dev-seed.json
+reset:
+	docker compose down --volumes --remove-orphans
+	rm -f -- $(SEED_MANIFEST)
+
+## Alias of reset (kept for existing habits)
+clean: reset
 
 ## Backend (native, requires Go 1.27+; needs mongodb running, e.g. `make up` or `docker compose up -d --wait mongodb`)
 backend-run:
