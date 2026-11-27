@@ -82,7 +82,19 @@ test("assigned target only, mutual confirmation via MQTT, decline, transfer, rec
     await expect(victimPage.getByRole("region", { name: "Your victim", exact: true })).toHaveCount(0);
     await expect(victimPage.getByRole("region", { name: "Your mission", exact: true })).toHaveCount(0);
     await expect(observerPage.getByRole("region", { name: "Elimination confirmation" })).toHaveCount(0);
-    const after = await getGame(killer);
+    // Persistent private notice: live arrival, survives reload, victim only.
+    const notice = victimPage.getByRole("region", { name: "Elimination notice", exact: true });
+    await expect(notice).toContainText(`${killer.game.me.name} eliminated you.`);
+    await expect(notice).toContainText(before.me.mission);
+    await victimPage.reload();
+    await expect(notice).toContainText(before.me.mission);
+    await expect(killerPage.getByRole("region", { name: "Elimination notice" })).toHaveCount(0);
+    await expect(observerPage.getByRole("region", { name: "Elimination notice" })).toHaveCount(0);
+    expect((await getGame(victim)).me.elimination.killer).toEqual({ id: killer.game.me.id, name: killer.game.me.name });
+    expect((await getGame(killer)).me.elimination).toBeUndefined();
+    expect((await getGame(observer)).me.elimination).toBeUndefined();
+    expect(JSON.stringify(await getGame(observer))).not.toContain(before.me.mission);
+    const after =await getGame(killer);
     expect(after.me.victim).toEqual(victimBefore.me.victim);
     expect(after.me.mission).toBe(victimBefore.me.mission);
     await killerPage.reload();
@@ -92,6 +104,8 @@ test("assigned target only, mutual confirmation via MQTT, decline, transfer, rec
     await observerPage.getByRole("button", { name: "Accept elimination" }).click();
     await expect(killerPage.getByText(`${killer.game.me.name} is the last player standing!`)).toBeVisible();
     await expect(killerPage.getByText("Game ended", { exact: true })).toBeVisible();
+    // The game-ending elimination also yields a notice for that victim.
+    await expect(observerPage.getByRole("region", { name: "Elimination notice", exact: true })).toContainText(`${killer.game.me.name} eliminated you.`);
     state = await getGame(killer);
     expect(state.winnerId).toBe(killer.game.me.id);
     expect(state.me.victim).toBeUndefined();

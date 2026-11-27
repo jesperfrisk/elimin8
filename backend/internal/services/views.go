@@ -63,6 +63,29 @@ func View(g *models.Game, a models.Access) models.GameView {
 	}
 	if v.Me != nil {
 		v.Me.Team = teamViewFor(g, a.PlayerID)
+		v.Me.Elimination = receiptFor(g, a.PlayerID)
 	}
 	return v
+}
+
+// receiptFor builds the victim's private notice from their own accepted
+// elimination. Pending, declined and cancelled claims never produce one.
+func receiptFor(g *models.Game, victimID string) *models.EliminationReceipt {
+	for _, c := range g.Eliminations {
+		if c.VictimID != victimID || c.Status != "accepted" || c.ResolvedAt == nil {
+			continue
+		}
+		r := &models.EliminationReceipt{Killer: models.VictimView{ID: c.KillerID, Name: "A player"}, ConfirmedAt: *c.ResolvedAt}
+		for _, p := range g.Players {
+			if p.ID == c.KillerID {
+				r.Killer.Name = p.Name
+			}
+		}
+		if c.Mission != "" {
+			m := c.Mission
+			r.Mission = &m
+		}
+		return r
+	}
+	return nil
 }

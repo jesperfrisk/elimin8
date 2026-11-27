@@ -81,7 +81,7 @@ func (s *GameService) RespondElimination(ctx context.Context, a models.Access, i
 			if !accept {
 				return nil
 			}
-			claim.Status = "accepted"
+			claim.Status, claim.Mission = "accepted", killer.Mission
 			transferElimination(g, killer, victim, now)
 			cancelEliminations(g, now)
 			return nil

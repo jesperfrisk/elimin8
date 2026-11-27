@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { request } from "./api";
-import { missionPresets } from "./missionPresets";
+import { missionPresets } from "./missionPresetCatalog";
 
 export function MissionPresets({ game, access, action, busy }) {
   const [selected, setSelected] = useState([]);

@@ -42,7 +42,7 @@ make frontend-build
 | `OrganizerView.jsx` | Organizer roster, start/end, add players, private codes, lobby missions |
 | `PlayerView.jsx` | Player status card, victim/mission, eliminations |
 | `LobbyMissions.jsx`, `Eliminations.jsx` | Mission setup and elimination confirmation |
-| `MissionPresets.jsx`, `missionPresets.js` | Optional built-in mission picker; selected tasks become ordinary game-local missions through the existing API |
+| `MissionPresets.jsx`, `missionPresetCatalog.js` | Optional built-in mission picker; selected tasks become ordinary game-local missions through the existing API |
 | `Teams.jsx`, `Timer.jsx`, `Withdrawal.jsx`, `KillBoard.jsx`, `Results.jsx` | Shipped Phase 1 team setup, countdown, confirmed withdrawal, authenticated status board and final results |
 | `slots.jsx` | Extension points for new panels (below) |
 | `common.jsx` | Shared helpers: `PageHeading`, `CopyButton`, `formatDate` |
