@@ -15,6 +15,8 @@ type Player struct {
 	// Number is the stable public display number, fixed when the player is
 	// added and never reused. Zero on games created before it existed.
 	Number int `bson:"number,omitempty"`
+	// Always persist the empty value so removing a photo clears MongoDB's field.
+	PhotoID string `bson:"photoId"`
 
 	// Reserved for Phase 1 features; not exposed in any view yet.
 	TeamID         string     `bson:"teamId,omitempty"`
