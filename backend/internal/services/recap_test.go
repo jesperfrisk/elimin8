@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -73,7 +74,7 @@ func TestRecapIndividualTimerGame(t *testing.T) {
 	}
 	var top map[string]json.RawMessage
 	_ = json.Unmarshal(raw, &top)
-	if len(top) != 4 {
+	if len(top) != 5 {
 		t.Fatalf("top-level keys = %v", top)
 	}
 	var sum map[string]any
@@ -117,5 +118,58 @@ func TestRecapNoEliminationsAndTeamTie(t *testing.T) {
 	raw, _ := json.Marshal(r)
 	if !strings.Contains(string(raw), `"firstElimination":null`) || !strings.Contains(string(raw), `"timeline":[]`) {
 		t.Fatalf("json = %s", raw)
+	}
+}
+
+// Awards may tie an eliminated player with the survivor; only the result decides.
+func TestRecapWinnersMatchAuthoritativeResult(t *testing.T) {
+	for _, mode := range []string{"individual", "team"} {
+		t.Run(mode, func(t *testing.T) {
+			g := recapGame()
+			g.EndReason = "survival"
+			g.Players = []models.Player{
+				{ID: "a", Name: "Alice", Included: true, EliminatedAt: g.EndedAt, TeamID: "losers"},
+				{ID: "z", Name: "Zoe", Included: true, TeamID: "winners"},
+				{ID: "y", Name: "Yara", Included: mode == "team", TeamID: "winners"},
+			}
+			g.WinnerID = "z"
+			if mode == "team" {
+				g.Mode = models.ModeTeam
+				g.WinnerKind, g.WinnerID = "team", "winners"
+				g.Teams = []models.Team{{ID: "winners", Name: "Winning team"}, {ID: "losers", Name: "Other team"}}
+			}
+			want, err := services.ResultOf(g)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, stored := range []bool{false, true} {
+				if stored {
+					g.Result = want
+				}
+				got, err := services.RecapOf(g)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(got.Winners, want.Winners) {
+					t.Fatalf("stored=%v winners=%+v want=%+v", stored, got.Winners, want.Winners)
+				}
+				if got.Awards.LongestSurvivor.Name != "Alice" {
+					t.Fatal("fixture must award Alice despite the different winner")
+				}
+			}
+		})
+	}
+}
+
+func TestRecapZeroKillTimerWinners(t *testing.T) {
+	g := recapGame()
+	g.Players = []models.Player{{ID: "a", Name: "Alice", Included: true}, {ID: "b", Name: "Bob", Included: true}}
+	got, err := services.RecapOf(g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []models.ResultWinner{{Kind: "player", ID: "a", Name: "Alice"}, {Kind: "player", ID: "b", Name: "Bob"}}
+	if !got.Summary.Tie || !reflect.DeepEqual(got.Winners, want) || len(got.Awards.MostKills) != 0 {
+		t.Fatalf("zero-kill timer recap = %+v", got)
 	}
 }

@@ -9,17 +9,10 @@ export function formatOffset(seconds) {
   return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`;
 }
 
-// The server sends no winners list, so the hero reads them from the awards it
-// does send: the last player standing wins a survival game, the top of the
-// standings wins on time, and an organizer-ended game has no winner.
+// Awards describe achievements, not the result. Use only the server's winners,
+// including team survival wins and timer ties with zero kills.
 export function recapWinners(recap) {
-  const { reason } = recap.summary;
-  if (reason === "survival") {
-    const w = recap.awards.longestSurvivor;
-    return w ? [{ id: w.playerId, name: w.name }] : [];
-  }
-  if (reason === "timer") return (recap.awards.mostKills || []).map((s) => ({ id: s.id, name: s.name }));
-  return [];
+  return (recap.winners || []).map(({ kind, id, name }) => ({ kind, id, name }));
 }
 
 // Competition ranking: equal kills share a rank (1, 1, 3).

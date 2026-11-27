@@ -46,10 +46,25 @@ func (c *GameController) login(w http.ResponseWriter, r *http.Request) {
 	if !decodeGame(w, r, &in) {
 		return
 	}
+	if in.Role == "player" && !c.playerLoginOriginAllowed(r) {
+		gameJSON(w, http.StatusForbidden, map[string]string{"error": "Use the same origin as the game page."})
+		return
+	}
 	a, err := c.service.Login(r.Context(), in.InvitationCode, in.Code, in.Role)
 	if err != nil {
 		gameError(w, err)
 		return
+	}
+	if a.Role == "player" {
+		secret, session, err := c.service.IssuePlayerSession(r.Context(), a.Token)
+		if err != nil {
+			gameError(w, err)
+			return
+		}
+		if err := c.setPlayerSessionCookie(w, r, a.Game.ID, secret, session.ExpiresAt); err != nil {
+			gameError(w, err)
+			return
+		}
 	}
 	gameJSON(w, 200, a)
 }

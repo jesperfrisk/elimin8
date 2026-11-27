@@ -15,6 +15,7 @@ type Memory struct {
 	mu         sync.Mutex
 	Games      map[string]*models.Game
 	Access     map[string]models.Access
+	Sessions   map[string]models.PlayerSession
 	BeforeSave func(*models.Game)
 }
 
@@ -103,4 +104,34 @@ func (m *Memory) GetAccess(_ context.Context, hash string) (models.Access, error
 		return a, services.ErrNotFound
 	}
 	return a, nil
+}
+
+func (m *Memory) PutPlayerSession(_ context.Context, session models.PlayerSession) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Sessions == nil {
+		m.Sessions = map[string]models.PlayerSession{}
+	}
+	if _, exists := m.Sessions[session.Hash]; exists {
+		return services.ErrConflict
+	}
+	m.Sessions[session.Hash] = session
+	return nil
+}
+
+func (m *Memory) GetPlayerSession(_ context.Context, hash string) (models.PlayerSession, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	session, ok := m.Sessions[hash]
+	if !ok {
+		return session, services.ErrNotFound
+	}
+	return session, nil
+}
+
+func (m *Memory) DeletePlayerSession(_ context.Context, hash string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.Sessions, hash)
+	return nil
 }

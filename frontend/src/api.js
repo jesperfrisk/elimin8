@@ -39,14 +39,16 @@ export async function request(
   path,
   { method = "GET", token, body, signal } = {},
 ) {
+  // FormData (photo uploads) is sent as is, so the browser sets the multipart boundary.
+  const form = typeof FormData !== "undefined" && body instanceof FormData;
   const response = await fetch(path, {
     method,
     signal,
     headers: {
-      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(body && !form ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: form ? body : body ? JSON.stringify(body) : undefined,
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

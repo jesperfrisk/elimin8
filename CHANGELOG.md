@@ -7,8 +7,15 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
-- Post-game recap UI (#42): once a game has ended, the public board (`#/board/<id>`, no login) and the organizer/player game pages show a recap with a winner hero, kill leaderboard (ties shown as ties), elimination timeline with `mm:ss` offsets, award cards and a game summary, with empty states and a data-table fallback. On the board it replaces the player grid ("Show players" toggles back). It consumes the existing recap routes and shows subjects only, never killers. Reduced motion disables the staggered reveal. Winners are derived from the recap's awards (the payload has no winners list).
+- Post-game recap UI (#42): once a game has ended, the public board (`#/board/<id>`, no login) and the organizer/player game pages show a recap with a winner hero, kill leaderboard (ties shown as ties), elimination timeline with `mm:ss` offsets, award cards and a game summary, with empty states and a data-table fallback. On the board it replaces the player grid ("Show players" toggles back). It consumes the existing recap routes and shows subjects only, never killers. Reduced motion disables the staggered reveal. Winners come from the server-calculated result, including team survival wins and timer ties with zero kills. Both recap routes expose only winner kind, ID and name after the game ends.
 - Public board recap API (#85): unauthenticated `GET /api/board/{gameId}/recap` returns the same payload as the authenticated recap for ended games (409 before the end, 404 for unknown ids), reusing `RecapOf`, the board's per-IP rate limit and `Cache-Control: no-store`. Tests assert the exact keys and that no killer, mission, target, code or team-membership data appears.
+- Remembered-player credential foundation (#82, part of #71): player code login
+  sets a game-scoped 30-day HttpOnly, SameSite-protected cookie, Secure over HTTPS
+  or an explicitly trusted TLS proxy. Only hashes and fixed-expiry metadata are
+  stored in a separate MongoDB collection with TTL cleanup. Validation checks
+  application expiry and current player version; remember secrets never authorize
+  bearer routes or appear in JSON. Browser logins validate Origin, and Nginx now
+  preserves Host/port. Exchange and browser restoration remain #83/#84.
 - `make reset` (#76): destructive local reset that runs `docker compose down --volumes --remove-orphans` for this Compose project only (honors `COMPOSE_PROJECT_NAME`), deleting the MongoDB and RustFS volumes (games, access records, photos) and the local seed marker, and leaving the stack stopped and empty with no reseeding. Repeatable. `make clean` is now an alias for it, so there is one cleanup implementation.
 - Persistent private elimination notice (#74): after a victim accepts an elimination, their own game view gains `me.elimination` (`killer`, `mission`, `confirmedAt`) and the player page shows an "Elimination notice" panel that survives reloads and game-ending kills. The mission is snapshotted at acceptance (before the transfer) and never serialized in the shared `eliminations` list; legacy eliminations report `mission: null`. No other role sees the killer/mission relationship, and no push, service worker or OS notification is added. Existing dynamic-target and team-repair tests still pass; the ROADMAP notification item is ticked.
 
@@ -82,7 +89,20 @@ Notable changes and the reasoning behind them. Format loosely follows
   2 to about 100 players without scrolling on a TV. Includes lobby, active and
   ended ("Game over", survivors tagged) states, a friendly 404 screen, a
   fullscreen button, and a copy-board-link button in the organizer and player
-  game views. Photos on tiles are a separate ticket (#41).
+  game views.
+- Player photo UI (#41): a **Your photo** panel for joined players with
+  **Take a photo** (front camera on phones) and **Choose a photo**, a preview
+  in the shape of a board tile, and nothing uploaded or public until it is
+  confirmed. The browser shrinks photos to at most 1200 px before upload, so
+  camera photos never hit the 5 MiB or 25 megapixel limit and EXIF never
+  leaves the device. Errors from the server are shown inline, the panel says
+  the photo is public on the board and deleted 24 hours after the game ends,
+  and uploads stop once the game has ended. Organizers get an avatar per
+  roster row with Add, Replace and Remove. Photos now fill the live board
+  tiles (the public board payload gained an optional opaque `photoUrl` and a
+  photo change republishes the board), with initials as the fallback and the
+  same dimming and X for eliminated players. Shared `PlayerAvatar` component
+  for the recap to reuse.
 - Board elimination moment (#40): a live elimination flashes and shakes the
   tile, sweeps a red X across it, dims it and ticks the active count down,
   with a low synthesized Web Audio gong. Withdrawals get a quieter grey
@@ -94,7 +114,7 @@ Notable changes and the reasoning behind them. Format loosely follows
   remembered choice and a mute toggle, works when audio or `localStorage` is
   blocked, and `prefers-reduced-motion` swaps the motion for a short fade.
 - Optional player photos, delivered as three backend slices of #37 (the photo
-  UI, #41, has not shipped yet):
+  UI is #41, below):
   - Private local RustFS object storage in Compose and an S3 adapter (#53).
     Native development can leave storage disabled.
   - Authorized photo upload, replace, remove and read (#54): JPEG/PNG/WebP up

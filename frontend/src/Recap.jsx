@@ -8,7 +8,7 @@ import "./recap.css";
 // payload names subjects only, so this UI cannot show who eliminated whom.
 
 const reasonText = {
-  survival: "One player left standing.",
+  survival: "The game ended with a survival win.",
   timer: "Time ran out. The most confirmed kills wins.",
   organizer: "The organizer ended the game, so there is no winner.",
 };

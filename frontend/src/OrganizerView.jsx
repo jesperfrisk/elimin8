@@ -3,6 +3,8 @@ import { request } from "./api";
 import { LobbyMissions } from "./LobbyMissions";
 import { gameActionError } from "./gameActionError";
 import { CopyButton } from "./common";
+import { PlayerAvatar } from "./PlayerAvatar";
+import { RosterPhotoControls } from "./PhotoUpload";
 import { teamStartBlocker } from "./Teams";
 
 export function OrganizerView({ game, access, run, busy, action, refresh }) {
@@ -114,7 +116,10 @@ export function OrganizerView({ game, access, run, busy, action, refresh }) {
                   {players.map((p) => (
                     <tr key={p.id}>
                       <td>
-                        <strong>{p.name}</strong>
+                        <div className="roster-player">
+                          <PlayerAvatar id={p.id} name={p.name} photoUrl={p.photoUrl} token={access.token} />
+                          <strong>{p.name}</strong>
+                        </div>
                       </td>
                       <td>
                         <span
@@ -134,6 +139,8 @@ export function OrganizerView({ game, access, run, busy, action, refresh }) {
                       <td>
                         {game.status !== "ended" &&
                           (lobby || p.included) && (
+                            <div className="roster-actions">
+                            <RosterPhotoControls game={game} access={access} player={p} action={action} busy={busy} />
                             <button
                               className="text-button"
                               disabled={busy}
@@ -162,6 +169,7 @@ export function OrganizerView({ game, access, run, busy, action, refresh }) {
                             >
                               Reset code
                             </button>
+                            </div>
                           )}
                       </td>
                     </tr>

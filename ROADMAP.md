@@ -70,7 +70,7 @@ feature. Phase 2/3 work below retains its existing scope.
 
 ## Phase 2: Improved Experience
 
-- [ ] Live game dashboard (partly delivered: public board API #36, board UI #39 and the elimination moment #40; photos on tiles #41 remain)
+- [x] Live game dashboard (public board API #36, board UI #39, elimination moment #40 and photos on tiles #41)
 - [x] Advanced post-game statistics (recap API #38/#85, recap UI #42)
 
 ## Phase 3: Frictionless Joining and Richer Play
@@ -78,8 +78,8 @@ feature. Phase 2/3 work below retains its existing scope.
 Joining and recovery:
 
 - [ ] One shared QR code per lobby (replaces per-player QR invitations): players scan it, enter their name, and press **Join**
-- [ ] Persistent cookie holding the player's unique ID, so they stay signed in as the same player
-- [ ] Cookie-loss recovery: players can re-enter their unique code to reclaim their player and have the cookie set again
+- [ ] Persistent cookie holding the player's unique ID, so they stay signed in as the same player (hashed credential storage and 30-day cookie issuance: #82; session exchange #83 and frontend restoration #84 remain, parent #71)
+- [ ] Cookie-loss recovery: players can re-enter their unique code to reclaim their player and have the cookie set again (code login issues the remembered cookie in #82; session/recovery UI integration remains #83/#84)
 
 Eliminations and missions:
 
@@ -89,7 +89,7 @@ Eliminations and missions:
 
 Media:
 
-- [ ] Upload a photo/selfie per game and per temporary player account (backend shipped in #54; UI pending in #41)
+- [x] Upload a photo/selfie per game and per temporary player account (backend #54, UI #41)
 - [x] Object storage (RustFS or another S3-compatible store) in the Docker Compose infrastructure
 - [x] Delete all uploaded images 24 hours after the game ends (configurable retention, `PHOTO_RETENTION_HOURS`; #37 / #55)
 

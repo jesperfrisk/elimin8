@@ -225,11 +225,8 @@
     hsl(var(--h) 50% 26%);
   /* Both stops keep white initials at 3:1 or better for every hue (checked). */
 }
-.tile-initials {
+.tile .avatar-initials {
   font-size: calc(var(--tile) * 0.34);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  color: #fff;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 .tile-caption {

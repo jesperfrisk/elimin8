@@ -14,10 +14,10 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-type GameRepository struct{ games, access *mongo.Collection }
+type GameRepository struct{ games, access, sessions *mongo.Collection }
 
 func NewGameRepository(db *mongo.Database) *GameRepository {
-	return &GameRepository{db.Collection("games"), db.Collection("game_access")}
+	return &GameRepository{games: db.Collection("games"), access: db.Collection("game_access"), sessions: db.Collection("player_sessions")}
 }
 
 func (r *GameRepository) EnsureIndexes(ctx context.Context) error {
@@ -26,7 +26,10 @@ func (r *GameRepository) EnsureIndexes(ctx context.Context) error {
 		return err
 	}
 	_, err = r.access.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "expiresAt", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(0)})
-	return err
+	if err != nil {
+		return err
+	}
+	return r.ensurePlayerSessionIndexes(ctx)
 }
 
 func mapError(err error) error {
