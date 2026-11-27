@@ -1,13 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 import { useGame } from "./useGame";
 import { CopyButton, formatDate } from "./common";
 import { OrganizerView } from "./OrganizerView";
 import { PlayerView } from "./PlayerView";
 import { PanelSlot, lobbyPanels, inGamePanels, gameOverPanels } from "./slots";
 
-export function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
-  const { game, connection, error, refresh } = useGame(access);
+export function GamePage({ access, run, busy, secret, hideSecret, onForget, onRenew, onLost }) {
+  const { game, connection, error, refresh } = useGame(access, { onRenew, onLost });
   const organizer = access.role === "organizer";
+  const [signOutError, setSignOutError] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
+  // Players sign out for real (the server revokes the remembered sign-in first); organizers just forget this tab.
+  async function forget() {
+    setSignOutError("");
+    setSigningOut(true);
+    const problem = await onForget();
+    setSigningOut(false);
+    if (problem) setSignOutError(problem);
+  }
   const lobby = game.status === "lobby";
   const active = game.status === "active";
   const action = (work) =>
@@ -30,10 +40,15 @@ export function GamePage({ access, run, busy, secret, hideSecret, onForget }) {
         <a href={`#/${access.role}`}>
           ← {organizer ? "Organizer desk" : "Your games"}
         </a>
-        <button className="text-button" onClick={onForget}>
-          Forget access in this tab
+        <button className="text-button" disabled={signingOut} onClick={forget}>
+          {organizer ? "Forget access in this tab" : signingOut ? "Signing out…" : "Sign out of this game"}
         </button>
       </div>
+      {signOutError && (
+        <div className="alert" role="alert">
+          {signOutError}
+        </div>
+      )}
       {error && (
         <div className="alert" role="alert">
           {error}{" "}

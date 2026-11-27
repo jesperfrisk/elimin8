@@ -9,10 +9,11 @@ export function readAccess() {
 }
 export function rememberAccess(access) {
   // Private codes and the fetched roster are never persisted in the browser.
-  const { token, expiresAt, role, clientPrefix, topic, game } = access;
+  const { token, expiresAt, role, clientPrefix, topic, game, previousExpiresAt } = access;
   const entry = {
     token,
     expiresAt,
+    ...(previousExpiresAt ? { previousExpiresAt } : {}),
     role,
     clientPrefix,
     topic,
