@@ -7,6 +7,18 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Added
 
+- Self-join backend (#72, part of #70): `POST /api/join` registers a player in an open
+  lobby from the shared invitation code and a display name that is unique in the game
+  (Unicode-normalized, case-folded and whitespace-collapsed, so "Alex", " alex " and
+  "ＡＬＥＸ" collide). The registration is one revision-checked write, so concurrent
+  joins across API instances and a racing start or end are decided exactly once. It
+  returns `201` with the player's admission, a one-time `recoveryCode` and the existing
+  30-day remember cookie, or `409` `name_taken` / `lobby_closed`. A valid same-game
+  player bearer resumes that player without creating anyone, a recovery code or a
+  cookie. A registration that commits but cannot finish signing in returns the
+  recovery code in a `registration_incomplete` error. The organizer pre-add route is
+  unchanged. Entry UI (#91) and retiring pre-add (#95) are separate. `golang.org/x/text`
+  is now a direct dependency (it was already in the module graph).
 - Remembered player games in the browser (#84, completes #71): after a restart a
   player's games are listed as remembered on this device and each opens by
   exchanging its HttpOnly cookie for a fresh admission, restoring the same player
