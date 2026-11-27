@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,6 +35,45 @@ func staleReportGame(t *testing.T) (*services.GameService, *testutil.Memory, []m
 		t.Fatal(err)
 	}
 	return services.NewGameService(repo), repo, access
+}
+
+func TestRepairCancellationSurvivesConcurrentResponseRetry(t *testing.T) {
+	ctx := context.Background()
+	s, repo, a := staleReportGame(t)
+	stale, err := s.ReportElimination(ctx, a[3], "4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := s.ReportElimination(ctx, a[0], "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Another API instance commits the transfer while this instance is about
+	// to save a response. Its stale write must retry against the cancellation.
+	other := services.NewGameService(repo)
+	var once sync.Once
+	repo.BeforeSave = func(*models.Game) {
+		once.Do(func() {
+			repo.BeforeSave = nil
+			if err := other.RespondElimination(ctx, a[1], first.ID, true); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if err := s.RespondElimination(ctx, a[4], stale.ID, false); !errors.Is(err, services.ErrElimination) {
+		t.Fatalf("stale response after retry: %v, want ErrElimination", err)
+	}
+	g, err := repo.Get(ctx, a[0].GameID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNoStalePending(t, g)
+	if claimStatus(g, stale.ID) != "cancelled" || g.Players[3].ConfirmedKills != 0 {
+		t.Fatal("retry overwrote the cancellation or awarded a kill")
+	}
+	if _, err := s.ReportElimination(ctx, a[3], g.Players[3].VictimID); err != nil {
+		t.Fatalf("replacement report after retry: %v", err)
+	}
 }
 
 // assertNoStalePending fails when a pending report no longer matches its living

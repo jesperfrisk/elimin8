@@ -35,6 +35,9 @@ func (s *GameService) ReportElimination(ctx context.Context, a models.Access, vi
 	}
 	claim := models.Elimination{ID: id, KillerID: a.PlayerID, VictimID: victimID, Status: "pending", CreatedAt: time.Now().UTC()}
 	_, err = s.mutate(ctx, a.GameID, func(g *models.Game) error {
+		if err := s.revalidatePlayer(g, a); err != nil {
+			return err
+		}
 		killer := livingPlayer(g, a.PlayerID)
 		if g.Status != "active" || killer == nil || livingPlayer(g, victimID) == nil || killer.VictimID != victimID {
 			return ErrElimination
@@ -55,6 +58,9 @@ func (s *GameService) RespondElimination(ctx context.Context, a models.Access, i
 		return ErrForbidden
 	}
 	_, err := s.mutate(ctx, a.GameID, func(g *models.Game) error {
+		if err := s.revalidatePlayer(g, a); err != nil {
+			return err
+		}
 		for i := range g.Eliminations {
 			claim := &g.Eliminations[i]
 			if claim.ID != id {
