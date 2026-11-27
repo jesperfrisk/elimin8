@@ -110,6 +110,8 @@ make e2e-up
 make frontend-test
 ```
 
+The test stack uses the separate `elimin8-e2e` Compose project and its own database and storage volumes, so it does not raise the login limit on the normal `elimin8` stack. Stop the normal stack first to free its host ports, or override `MONGODB_PORT`, `BACKEND_PORT`, `FRONTEND_PORT`, and `PHOTO_STORAGE_PORT` and set `E2E_BASE_URL` to the test frontend. Stop the test stack with `docker compose -p elimin8-e2e -f compose.yaml -f compose.e2e.yaml down`.
+
 Tests cover real organizer/player browser contexts, mission batches and partial-failure recovery, mission toggles and persistence, joined-only start, MQTT lifecycle updates, assigned-target enforcement, elimination confirmation/decline/transfers, failed-response recovery, final victory, reconnect recovery, topic isolation, code reset, and API permissions. On Windows they use installed Microsoft Edge; elsewhere run `npx playwright install chromium` first. Override the browser with `PLAYWRIGHT_CHANNEL` and the server with `E2E_BASE_URL`. Test games are created in the configured development database and ended after successful checks; existing games are not deleted.
 
 See the [project README](../README.md) for the complete game rules, the [roadmap](../ROADMAP.md), and the [backend README](../backend/README.md) for the API architecture.

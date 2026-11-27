@@ -45,7 +45,7 @@ Media:
 
 - [ ] Upload a photo/selfie per game and per temporary player account
 - [ ] Object storage (RustFS or another S3-compatible store) in the Docker Compose infrastructure
-- [ ] Delete all uploaded images when the game ends
+- [ ] Delete all uploaded images 24 hours after the game ends (configurable retention; #37 / #55)
 
 Developer experience:
 

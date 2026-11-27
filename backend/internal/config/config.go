@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"strconv"
+
+	"github.com/jesperfrisk/elimin8/backend/internal/storage"
 )
 
 const (
@@ -18,6 +20,7 @@ type Config struct {
 	// LoginRateLimit is the anonymous attempts allowed per remote address and
 	// endpoint each minute. It is bounded to [1, MaxLoginRateLimit].
 	LoginRateLimit int
+	PhotoStorage   storage.S3Config
 }
 
 func Load() Config {
@@ -26,7 +29,27 @@ func Load() Config {
 		MongoDBURI:      envOrDefault("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDBDatabase: envOrDefault("MONGODB_DATABASE", "elimin8"),
 		LoginRateLimit:  loginRateLimit(os.Getenv("LOGIN_RATE_LIMIT_PER_MINUTE")),
+		PhotoStorage: storage.S3Config{
+			Endpoint:  os.Getenv("PHOTO_STORAGE_ENDPOINT"),
+			Provider:  envOrDefault("PHOTO_STORAGE_PROVIDER", "s3"),
+			Region:    envOrDefault("PHOTO_STORAGE_REGION", "us-east-1"),
+			Bucket:    envOrDefault("PHOTO_STORAGE_BUCKET", "elimin8-photos"),
+			AccessKey: os.Getenv("PHOTO_STORAGE_ACCESS_KEY"),
+			SecretKey: os.Getenv("PHOTO_STORAGE_SECRET_KEY"),
+		},
 	}
+}
+
+// ValidatePhotoStorage rejects partial configuration; an unset endpoint with no
+// credentials keeps native development independent of an object store.
+func (c Config) ValidatePhotoStorage() error {
+	if c.PhotoStorage.Endpoint == "" {
+		if c.PhotoStorage.AccessKey != "" || c.PhotoStorage.SecretKey != "" {
+			return storage.ErrInvalid
+		}
+		return nil
+	}
+	return c.PhotoStorage.Validate()
 }
 
 func envOrDefault(key, fallback string) string {

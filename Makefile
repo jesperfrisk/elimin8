@@ -47,7 +47,7 @@ frontend-build:
 
 ## Isolated stack for the browser suite: raises the login limit to 600/min (test-only)
 e2e-up:
-	docker compose -f compose.yaml -f compose.e2e.yaml up --build --wait -d
+	docker compose -p elimin8-e2e -f compose.yaml -f compose.e2e.yaml up --build --wait -d
 
 ## End-to-end tests (requires the stack from `make e2e-up`; plain `make up` hits the 30/min login limit)
 frontend-test:

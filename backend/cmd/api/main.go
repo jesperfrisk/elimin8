@@ -16,6 +16,7 @@ import (
 	"github.com/jesperfrisk/elimin8/backend/internal/realtime"
 	"github.com/jesperfrisk/elimin8/backend/internal/repositories/mongodb"
 	"github.com/jesperfrisk/elimin8/backend/internal/services"
+	"github.com/jesperfrisk/elimin8/backend/internal/storage"
 )
 
 func main() {
@@ -28,8 +29,29 @@ func main() {
 
 func run() error {
 	cfg := config.Load()
+	if err := cfg.ValidatePhotoStorage(); err != nil {
+		return errors.New("photo storage configuration is invalid; check PHOTO_STORAGE settings")
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	var photoStore storage.Store
+	var photoRetention time.Duration
+	if cfg.PhotoStorage.Endpoint != "" {
+		retention, err := config.LoadPhotoRetention()
+		if err != nil {
+			return err
+		}
+		photoRetention = retention
+		storageCtx, storageCancel := context.WithTimeout(ctx, 15*time.Second)
+		// Configured storage must pass private-store checks before the API starts.
+		store, err := storage.NewS3(storageCtx, cfg.PhotoStorage)
+		storageCancel()
+		if err != nil {
+			return errors.New("private photo storage could not be initialized during " + storage.InitializationStage(err) + "; check PHOTO_STORAGE settings, access permissions, and storage availability")
+		}
+		photoStore = store
+	}
 
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	db, err := database.Connect(connectCtx, cfg.MongoDBURI, cfg.MongoDBDatabase)
@@ -52,6 +74,9 @@ func run() error {
 	gameRepo := mongodb.NewGameRepository(db)
 	indexCtx, indexCancel := context.WithTimeout(ctx, 10*time.Second)
 	err = gameRepo.EnsureIndexes(indexCtx)
+	if err == nil && photoStore != nil {
+		err = gameRepo.EnsurePhotoRetentionIndex(indexCtx)
+	}
 	indexCancel()
 	if err != nil {
 		return errors.New("game database indexes could not be initialized")
@@ -70,6 +95,12 @@ func run() error {
 	games := controllers.NewGameController(gameService)
 	games.SetRateLimit(cfg.LoginRateLimit)
 	games.Register(mux)
+	if photoStore != nil {
+		photos := services.NewPhotoService(gameService, photoStore)
+		photos.Retention = photoRetention
+		controllers.NewPhotoController(gameService, photos).Register(mux)
+		go services.NewPhotoRetentionService(gameService, gameRepo, photoStore, photoRetention).Run(outboxCtx, time.Minute)
+	}
 	mux.Handle("GET /api/mqtt", broker)
 
 	server := &http.Server{
