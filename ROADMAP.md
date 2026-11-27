@@ -70,7 +70,7 @@ feature. Phase 2/3 work below retains its existing scope.
 
 ## Phase 2: Improved Experience
 
-- [ ] Live game dashboard (partly delivered: public board API #36, board UI #39 and the elimination moment #40; photos on tiles #41 remain)
+- [x] Live game dashboard (public board API #36, board UI #39, elimination moment #40 and photos on tiles #41)
 - [ ] Advanced post-game statistics
 
 ## Phase 3: Frictionless Joining and Richer Play
@@ -89,7 +89,7 @@ Eliminations and missions:
 
 Media:
 
-- [ ] Upload a photo/selfie per game and per temporary player account (backend shipped in #54; UI pending in #41)
+- [x] Upload a photo/selfie per game and per temporary player account (backend #54, UI #41)
 - [x] Object storage (RustFS or another S3-compatible store) in the Docker Compose infrastructure
 - [x] Delete all uploaded images 24 hours after the game ends (configurable retention, `PHOTO_RETENTION_HOURS`; #37 / #55)
 

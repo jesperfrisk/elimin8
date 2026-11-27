@@ -81,7 +81,20 @@ Notable changes and the reasoning behind them. Format loosely follows
   2 to about 100 players without scrolling on a TV. Includes lobby, active and
   ended ("Game over", survivors tagged) states, a friendly 404 screen, a
   fullscreen button, and a copy-board-link button in the organizer and player
-  game views. Photos on tiles are a separate ticket (#41).
+  game views.
+- Player photo UI (#41): a **Your photo** panel for joined players with
+  **Take a photo** (front camera on phones) and **Choose a photo**, a preview
+  in the shape of a board tile, and nothing uploaded or public until it is
+  confirmed. The browser shrinks photos to at most 1200 px before upload, so
+  camera photos never hit the 5 MiB or 25 megapixel limit and EXIF never
+  leaves the device. Errors from the server are shown inline, the panel says
+  the photo is public on the board and deleted 24 hours after the game ends,
+  and uploads stop once the game has ended. Organizers get an avatar per
+  roster row with Add, Replace and Remove. Photos now fill the live board
+  tiles (the public board payload gained an optional opaque `photoUrl` and a
+  photo change republishes the board), with initials as the fallback and the
+  same dimming and X for eliminated players. Shared `PlayerAvatar` component
+  for the recap to reuse.
 - Board elimination moment (#40): a live elimination flashes and shakes the
   tile, sweeps a red X across it, dims it and ticks the active count down,
   with a low synthesized Web Audio gong. Withdrawals get a quieter grey
@@ -93,7 +106,7 @@ Notable changes and the reasoning behind them. Format loosely follows
   remembered choice and a mute toggle, works when audio or `localStorage` is
   blocked, and `prefers-reduced-motion` swaps the motion for a short fade.
 - Optional player photos, delivered as three backend slices of #37 (the photo
-  UI, #41, has not shipped yet):
+  UI is #41, below):
   - Private local RustFS object storage in Compose and an S3 adapter (#53).
     Native development can leave storage disabled.
   - Authorized photo upload, replace, remove and read (#54): JPEG/PNG/WebP up

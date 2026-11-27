@@ -20,6 +20,9 @@ type BoardPlayer struct {
 	Number int    `json:"number"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
+	// PhotoURL is the opaque, relative URL of the player's photo (absent when they
+	// have none). Photos of included participants are readable by board viewers.
+	PhotoURL string `json:"photoUrl,omitempty"`
 }
 
 type BoardTimer struct {

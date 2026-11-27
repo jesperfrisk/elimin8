@@ -22,11 +22,12 @@ import { Results } from "./Results";
 import { Timer } from "./Timer";
 import { Teams } from "./Teams";
 import { KillBoard } from "./KillBoard";
+import { PhotoUpload } from "./PhotoUpload";
 
-export const lobbyPanels = [Timer, Teams];
+export const lobbyPanels = [Timer, Teams, PhotoUpload];
 
 // game.status === "active"
-export const inGamePanels = [Timer, Teams, Withdrawal, KillBoard];
+export const inGamePanels = [Timer, Teams, Withdrawal, KillBoard, PhotoUpload];
 
 // game.status === "ended"
 export const gameOverPanels = [Results];

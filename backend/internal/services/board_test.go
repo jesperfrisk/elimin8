@@ -184,3 +184,69 @@ func TestBoardDigestIgnoresTickingTimeButNotStatus(t *testing.T) {
 		t.Fatal("status change did not alter the digest")
 	}
 }
+
+func TestBoardCarriesOpaquePhotoURLsAndRepublishesOnPhotoChange(t *testing.T) {
+	now := time.Now().UTC()
+	g := &models.Game{ID: "g1", Name: "Photos", Status: "active",
+		Players: []models.Player{
+			{ID: "0", Name: "Ann", Included: true, PhotoID: "abcDEF123"},
+			{ID: "1", Name: "Bo", Included: true},
+			{ID: "2", Name: "Cy", Included: true, EliminatedAt: &now, PhotoID: "zzz999"},
+			{ID: "3", Name: "Di", Included: false, PhotoID: "notIncluded"},
+		}}
+	v := services.BuildBoard(g, now)
+	if len(v.Players) != 3 {
+		t.Fatalf("players = %+v", v.Players)
+	}
+	// A photo shows as the same relative, opaque URL the player views use; nobody else gets a key.
+	if v.Players[0].PhotoURL != "/api/games/g1/photos/abcDEF123" || v.Players[1].PhotoURL != "" || v.Players[2].PhotoURL != "/api/games/g1/photos/zzz999" {
+		t.Fatalf("photo urls = %q %q %q", v.Players[0].PhotoURL, v.Players[1].PhotoURL, v.Players[2].PhotoURL)
+	}
+	data, _ := json.Marshal(v)
+	var raw struct {
+		Players []map[string]any `json:"players"`
+	}
+	_ = json.Unmarshal(data, &raw)
+	if _, has := raw.Players[1]["photoUrl"]; has {
+		t.Fatalf("a player without a photo must have no photoUrl key: %v", raw.Players[1])
+	}
+	withPhoto := []string{"id", "name", "number", "photoUrl", "status"}
+	withoutPhoto := []string{"id", "name", "number", "status"}
+	for i, want := range [][]string{withPhoto, withoutPhoto, withPhoto} {
+		if keys := boardKeys(t, raw.Players[i]); !reflect.DeepEqual(keys, want) {
+			t.Fatalf("player %d keys = %v, want %v", i, keys, want)
+		}
+	}
+	// Excluded invitees' photos never appear, and every URL is the API path, not a storage key.
+	if strings.Contains(string(data), "notIncluded") {
+		t.Fatalf("board leaks an excluded invitee's photo: %s", data)
+	}
+	for _, p := range v.Players {
+		if p.PhotoURL != "" && !strings.HasPrefix(p.PhotoURL, "/api/games/g1/photos/") {
+			t.Fatalf("photo URL is not the opaque API path: %q", p.PhotoURL)
+		}
+	}
+	// The lobby board lists no players, so no photos either.
+	g.Status = "lobby"
+	if lobby := services.BuildBoard(g, now); len(lobby.Players) != 0 {
+		t.Fatalf("lobby board lists players: %+v", lobby.Players)
+	}
+	g.Status = "active"
+
+	// Setting, replacing and removing a photo changes the digest, so viewers get a board.updated.
+	before := services.BoardDigest(g)
+	g.Players[1].PhotoID = "newPhoto"
+	added := services.BoardDigest(g)
+	if added == before {
+		t.Fatal("adding a photo did not change the board digest")
+	}
+	g.Players[1].PhotoID = "replacedPhoto"
+	replaced := services.BoardDigest(g)
+	if replaced == added {
+		t.Fatal("replacing a photo did not change the board digest")
+	}
+	g.Players[1].PhotoID = ""
+	if services.BoardDigest(g) != before {
+		t.Fatal("removing the photo did not restore the board digest")
+	}
+}
