@@ -77,7 +77,7 @@ feature. Phase 2/3 work below retains its existing scope.
 
 Joining and recovery:
 
-- [ ] One shared QR code per lobby (replaces per-player QR invitations): players scan it, enter their name, and press **Join**
+- [ ] One shared QR code per lobby (replaces per-player QR invitations): players scan it, enter their name, and press **Join** (backend self-join `POST /api/join` delivered in #72; the QR and entry UI #91 and retiring organizer pre-add #95 remain)
 - [x] Persistent cookie holding the player's unique ID, so they stay signed in as the same player (credential storage/issuance #82, session exchange/revocation #83, browser restoration, renewal and sign-out #84; parent #71)
 - [x] Cookie-loss recovery: players can re-enter their unique code to reclaim their player and have the cookie set again (code login issues the remembered cookie in #82, session endpoints in #83, recovery form in #84; the shared QR and self-join items below are separate and still pending)
 
