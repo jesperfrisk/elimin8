@@ -22,6 +22,52 @@ rules and the [CHANGELOG](CHANGELOG.md) for what has shipped.
 - [x] Detect individual and team winners
 - [x] Calculate game results
 
+### Phase 1 implementation and verification
+
+All 16 MVP capabilities are implemented on `dev`. The evidence below maps each
+checkbox to the merged implementation and regression coverage; completion does
+not mean every deployment has been refreshed or every follow-up is resolved.
+
+| Capability | Implementation | Verification |
+| --- | --- | --- |
+| Create games | [Lifecycle service](backend/internal/services/lifecycle.go) | `TestLifecycleAndPrivacy` in [games tests](backend/internal/services/games_test.go) |
+| Join with invitation codes | [Lifecycle service](backend/internal/services/lifecycle.go) | Lifecycle, private-code reset and concurrent join/start tests in [games tests](backend/internal/services/games_test.go) |
+| Manual/random teams | [Team service](backend/internal/services/teams.go) | `TestTeamsManualRandomAndStartValidation` in [team tests](backend/internal/services/teams_test.go) |
+| Configure missions | [Mission service](backend/internal/services/missions.go) | Persistence, privacy, validation and retry tests in [mission tests](backend/internal/services/missions_test.go) |
+| Exhaust enabled missions before reuse | [Mission assignment](backend/internal/services/missions.go) | [Assignment tests](backend/internal/services/mission_assignment_test.go) |
+| Single private victim circle | [Victim assignment](backend/internal/services/victims.go) | `TestVictimsFormOneCircleOfJoinedPlayers` in [victim tests](backend/internal/services/victims_test.go) |
+| Team-safe assignment | [Victim assignment](backend/internal/services/victims.go) | [Team-circle tests](backend/internal/services/victims_team_test.go) and [transfer audit](backend/internal/services/team_victim_audit_test.go) |
+| Reveal assignments at start | [Role-scoped views](backend/internal/services/views.go) | [Mission lifecycle](backend/internal/services/mission_lifecycle_test.go) and [victim lifecycle](backend/internal/services/victim_lifecycle_test.go) tests |
+| Mutual elimination confirmation | [Elimination service](backend/internal/services/eliminations.go) | [Confirmation, decline, concurrency and privacy tests](backend/internal/services/eliminations_test.go) |
+| Automatic victim/mission transfer | [Elimination service](backend/internal/services/eliminations.go) | Circle/transfer tests in [elimination tests](backend/internal/services/eliminations_test.go) and [team audit](backend/internal/services/team_victim_audit_test.go) |
+| Confirmed withdrawals | [PR #28](https://github.com/jesperfrisk/elimin8/pull/28) | [Withdrawal tests](backend/internal/services/withdrawals_test.go), including transfers without a kill and concurrent confirmations |
+| Privacy-safe Kill Board | [PR #30](https://github.com/jesperfrisk/elimin8/pull/30) | [Exact-field, ordering and inclusion tests](backend/internal/services/killboard_test.go) |
+| Private confirmed kills | [PR #24](https://github.com/jesperfrisk/elimin8/pull/24) | [Kill tests](backend/internal/services/kills_test.go), including `TestKillCountsNeverInAnyAPIResponse` |
+| Optional timers | [Timer service](backend/internal/services/timer.go) | [Timer tests](backend/internal/services/timer_test.go) and [browser timer test](frontend/tests/timer.spec.js) |
+| Individual/team winners | [PR #31](https://github.com/jesperfrisk/elimin8/pull/31), corrected by [PR #61](https://github.com/jesperfrisk/elimin8/pull/61) | [Winner tests](backend/internal/services/winners_test.go), including singleton-team elimination and withdrawal |
+| Final results | [PR #33](https://github.com/jesperfrisk/elimin8/pull/33) | [Results tests](backend/internal/services/results_test.go), including ties, immutability and no mid-game kill counts |
+
+The acceptance follow-ups are resolved: [#43](https://github.com/jesperfrisk/elimin8/issues/43)
+fixed persisted timer/team clearing ([PR #60](https://github.com/jesperfrisk/elimin8/pull/60));
+[#44](https://github.com/jesperfrisk/elimin8/issues/44) fixed singleton-team winner identity
+([PR #61](https://github.com/jesperfrisk/elimin8/pull/61)); and
+[#45](https://github.com/jesperfrisk/elimin8/issues/45) isolated browser-fixture login limits
+([PR #64](https://github.com/jesperfrisk/elimin8/pull/64)). The
+[#45 completion report](https://github.com/jesperfrisk/elimin8/issues/45#issuecomment-7215488952)
+records two consecutive full Playwright runs passing 18/18 after the fixes.
+That is recorded validation evidence, not a new test run by this documentation audit.
+
+[#52](https://github.com/jesperfrisk/elimin8/issues/52) is also resolved by
+[PR #66](https://github.com/jesperfrisk/elimin8/pull/66): normal runtime login
+limits use validated client addresses behind configured trusted proxies, with
+a bounded aggregate safeguard. This is separate from #45's test-only allowance;
+the deployed proxy configuration still needs a live-stack check, as noted in
+the [backend documentation](backend/README.md).
+
+[#35](https://github.com/jesperfrisk/elimin8/issues/35) remains open to refresh
+and identify the affected stale local runtime. It is not a missing Phase 1
+feature. Phase 2/3 work below retains its existing scope.
+
 ## Phase 2: Improved Experience
 
 - [ ] Live game dashboard (partly delivered: public board API #36 and board UI #39; elimination animation and sound #40 and photos on tiles #41 remain)

@@ -41,22 +41,30 @@ make down
 
 See [backend setup](backend/README.md) and [frontend setup](frontend/README.md) for architecture, configuration, and development commands.
 
-## Available Now: Games, Missions, and Confirmed Eliminations
+## Available Now: Phase 1 Gameplay
 
 1. Open **Organize** and create a game with a name and optional description. Save the private organizer management code shown once after creation.
 2. Add player names to the lobby, one per line. Each roster entry receives its own eight-character private code. Copy each invitation and share it with that player only.
 3. Players open **Play** and enter the shared game invitation code plus their private player code. The organizer sees each player change from **Invited** to **Joined** immediately.
 4. Add missions to the lobby, one per line. Paste as many as you need; each entry starts enabled. Disable missions to leave them out without deleting them, and re-enable them whenever you like before starting. The mission list belongs only to this game and remains hidden from players. Repeated lines create separate entries.
-5. Start the game when ready. Only players who joined before the start are included, and mission configuration locks. Closing a browser does not undo a join. Included players can return using their codes; unjoined invitees cannot join after the start.
-6. During an active game, confirm an elimination report for your assigned target directly. Their screen receives a live MQTT confirmation request naming you. They can accept or decline; assignments change only on acceptance. Pending requests survive reconnects. Only the two involved players and the organizer can see a report.
-7. Acceptance marks the victim eliminated and transfers their target and mission to the killer. Only your currently assigned target can be reported or eliminated; accepting the report preserves the target circle. Eliminated players can still return to the game but cannot report kills. Declined reports leave assignments unchanged, and the killer can submit a new report. One outgoing report per killer and one incoming report per victim can be pending at a time. Reports involving a newly eliminated player are cancelled.
-8. The game ends as soon as there is a survival winner: the last active player, or, in team games, the last team with active players or a team that holds an unbeatable majority (no team-safe circle can exist any more). Eliminations and withdrawals both trigger the check. The winner's name is announced; nothing else is revealed. The organizer can also end a lobby or active game, cancelling pending reports. Ended games remain available to their organizer and previously admitted players.
+5. Before starting, choose individual or team mode. In team mode, assign teams manually or randomize them; every joined player needs a team, at least two teams must have joined players, and a team-safe circle must be possible. Players can see their own configured team in the lobby. Optionally set a timer from 1 minute to 7 days; it can be cleared in the lobby and begins at start.
+6. Start the game when ready. Only players who joined before the start are included, and mission/team/timer configuration locks. Closing a browser does not undo a join. Included players can return using their codes; unjoined invitees cannot join after the start or appear in the started game's teammate lists (fixed in [#51](https://github.com/jesperfrisk/elimin8/issues/51)).
+7. During an active game, confirm an elimination report for your assigned target directly. Their screen receives a live MQTT confirmation request naming you. They can accept or decline; assignments change only on acceptance. Pending requests survive reconnects. Only the two involved players and the organizer can see a report.
+8. Acceptance marks the victim eliminated and transfers their target and mission to the killer. Only your currently assigned target can be reported or eliminated; accepting the report preserves the target circle. Eliminated players can still return to the game but cannot report kills. Declined reports leave assignments unchanged, and the killer can submit a new report. One outgoing report per killer and one incoming report per victim can be pending at a time. Reports involving a newly eliminated player or a changed target are cancelled.
+9. An active player can select **Withdraw from game**, then **Confirm withdrawal**. Requesting alone does not withdraw them. Confirming transfers their victim and mission to their hunter without awarding a kill. The authenticated **Kill Board** groups participant names by active, eliminated and withdrawn status, with a count for each group; the **Game timer** panel shows the countdown when enabled.
+10. The game ends as soon as there is a survival winner: the last active player, or, in team games, the last team with active players or a team that holds an unbeatable majority (no team-safe circle can exist any more). Eliminations and withdrawals both trigger the check. A lone survivor in team mode wins for their team. If the timer expires first, the highest individual/team confirmed-kill score wins; shared top scores tie. **Final results** shows winners and standings only after the end. The organizer can also end a lobby or active game, cancelling pending reports; a manual ending has no final-result standings. Ended games remain available to their organizer and previously admitted players.
 
-Starting requires at least two joined players and one enabled mission. Each participant receives a private, randomly assigned mission and victim. Victims form one shuffled circle: everyone has one victim and one hunter, and nobody targets themselves. Every enabled mission entry is used once before any entry is reused; each new round is shuffled again. Disabled entries and unjoined invitees are excluded. Assignments persist when players reconnect. Shared participant information exposes only names, IDs, and status (active, eliminated, or withdrawn); other players' assignments stay private. An active player can withdraw in two steps: request, then confirm. A withdrawal is not a kill, and the withdrawn player's hunter inherits their victim and mission. When a game ends, the server calculates a final result once: the winner or winners (shared top scores are a tie), and each player's or team's confirmed kills. It is visible to everyone in the game only after the game has ended; mid-game responses never contain kill counts. After the game ends, `GET /api/games/{id}/recap` also returns a recap for the organizer and participants: a summary (duration, players, eliminations, withdrawals, declined reports, end reason, tie), the final leaderboard, an elimination timeline, and awards (longest survivor, first/fastest/last elimination, most kills). It names who was eliminated or withdrew and when, never who eliminated them, and withdrawals are not kills. Teams, timers, and organizer dispute resolution remain future work. The rules below describe the planned complete game.
+Starting requires at least two joined players and one enabled mission. Each participant receives a private, randomly assigned mission and victim. Victims form one shuffled circle: everyone has one victim and one hunter, and nobody targets themselves or a teammate. Every enabled mission entry is used once before any entry is reused; each new round is shuffled again. Disabled entries and unjoined invitees are excluded. Assignments persist when players reconnect. The shared `participants` list in authenticated game views includes IDs, names, status (active, eliminated, or withdrawn), and optional elimination timestamps; other players' assignments stay private. The dedicated Kill Board response is narrower: IDs, names and status only, without timestamps. Privacy checks must cover both responses, not just the Kill Board.
+
+Confirmed kills stay server-side during play, including for organizers. After survival or timer expiry, the server stores final winners and confirmed-kill standings once; game views themselves never include kill totals. After any ending, `GET /api/games/{id}/recap` returns a recap for the organizer and participants: a summary (duration, players, eliminations, withdrawals, declined reports, end reason, tie), leaderboard, elimination timeline and awards. It names who was eliminated or withdrew and when, never who eliminated them. The recap API is implemented; its frontend remains [#42](https://github.com/jesperfrisk/elimin8/issues/42).
+
+The unauthenticated board API and read-only MQTT topic are implemented ([#36](https://github.com/jesperfrisk/elimin8/issues/36)), along with the full-screen `#/board/<gameId>` page ([#39](https://github.com/jesperfrisk/elimin8/issues/39)). Organizers and joined players can open or copy the board link from their game view. Unauthenticated recap access is part of #42. Organizer dispute resolution, manual victim selection, pause/resume and a timer confirmation grace period remain future work. The rules below distinguish those planned features from current behavior.
 
 Player and organizer codes authenticate access across devices. Private codes are shown only when generated; an organizer can reset a lost player code, invalidating that player's previous code and access credentials. Browser tabs remember temporary access for up to 12 hours, without saving private codes. Keep the organizer management code: account recovery is not implemented.
 
 Lobby and lifecycle updates use MQTT over same-origin WebSockets, with no frontend polling. The Go API embeds the broker; no extra broker port or service is required. A mutex serializes game mutations inside the API, and atomic MongoDB revision checks protect concurrent joins and starts across instances. See the backend README for realtime deployment constraints.
+
+See the [Phase 1 verification checklist](ROADMAP.md#phase-1-implementation-and-verification) for merged code and test evidence. Fixes for stale reports ([#49](https://github.com/jesperfrisk/elimin8/issues/49)), credential revocation during writes ([#50](https://github.com/jesperfrisk/elimin8/issues/50)), and excluded invitees in team lists (#51) are merged. [#35](https://github.com/jesperfrisk/elimin8/issues/35) remains open for an affected stale Docker runtime and identifying its build revision; rebuild with `make up` after source changes while preserving data. [#52](https://github.com/jesperfrisk/elimin8/issues/52) is resolved by [PR #66](https://github.com/jesperfrisk/elimin8/pull/66): normal login limits use client addresses from configured trusted proxies, plus a bounded aggregate limit. The separate browser-test allowance from [#45](https://github.com/jesperfrisk/elimin8/issues/45) remains test-only. See the [backend configuration](backend/README.md) for proxy trust settings and the outstanding deployed-stack verification.
 
 ## 🎮 How It Works
 
@@ -69,7 +77,7 @@ The organizer can configure:
 - Game name and description
 - Individual or team mode
 - Manual or randomized teams
-- Manual or randomized victim assignments
+- Randomized victim assignments (manual assignment is planned)
 - Available missions
 - Optional game duration
 - Game rules and settings
@@ -79,6 +87,8 @@ The organizer can configure:
 Players join the lobby using an invitation link or game code.
 
 Secret assignments are not revealed until the game starts.
+Configured own-team names and teammates are already visible in the lobby;
+revealing teams only at start would be a separate behavior change.
 
 ### 3. Start the Game
 
@@ -86,7 +96,7 @@ When the organizer starts the game, each player privately receives:
 
 - **Their victim:** The player they must eliminate.
 - **Their mission:** The task they must complete.
-- **Their teammates:** Other members of their team, if teams are enabled.
+- **Their teammates:** The included members of their configured team, already visible during lobby setup. Starting freezes this list to participants; eliminated and withdrawn teammates remain listed.
 
 Players cannot see who is hunting them, who other players are hunting, or which players belong to opposing teams.
 
@@ -118,7 +128,7 @@ Both the killer and victim must confirm an elimination in the app.
 6. Assignments are updated automatically.
 7. The public Kill Board updates without revealing the killer's identity.
 
-Disputed eliminations can be reviewed by the organizer.
+The organizer can view elimination reports. Organizer dispute resolution is planned.
 
 ### 6. Inherit a Victim
 
@@ -158,9 +168,11 @@ Withdrawals do not count as kills.
 
 ### 8. Kill Board
 
-Every game includes a public **Kill Board** displaying the status of participants.
+Every active game includes an authenticated **Kill Board** for its organizer and
+players. It displays participant status without private relationships. The
+separate public board API and no-login page are available (#36 / #39).
 
-The Kill Board only displays:
+The Kill Board and separate timer panel display:
 
 - Player names
 - Player status (Active, Eliminated, or Withdrawn)
@@ -215,7 +227,8 @@ Kills earned by eliminated or withdrawn players still count toward the final res
 
 If multiple players or teams share the highest score, the result is a tie by default.
 
-Pending elimination claims reported before the deadline may be resolved during a configurable confirmation grace period.
+At expiry, pending reports are cancelled and results are calculated immediately.
+A configurable confirmation grace period is planned.
 
 ## 👥 Teams
 
@@ -246,12 +259,13 @@ When enabled:
 
 1. The timer starts when the game begins.
 2. All players can see the remaining time.
-3. The timer pauses if the game is paused.
-4. A survival victory ends the game immediately.
-5. If time expires first, the game enters a finalization phase.
-6. Eligible pending eliminations are resolved.
-7. The system calculates the winner using secret kill counts.
-8. The final result is announced.
+3. A survival victory ends the game immediately.
+4. If time expires first, pending eliminations are cancelled.
+5. The system calculates the winner using secret kill counts.
+6. The final result is announced.
+
+Pause/resume and a finalization grace period are planned; the current timer runs
+continuously from its server-recorded deadline.
 
 The server is responsible for maintaining the authoritative timer.
 
@@ -263,20 +277,36 @@ The application must enforce different visibility levels for game information.
 
 | Information               | Player | Organizer | Board link viewer |
 | ------------------------- | ------ | --------- | ----------------- |
-| Own victim                | Yes    | Yes       | No                |
-| Own mission               | Yes    | Yes       | No                |
-| Own teammates             | Yes    | Yes       | No                |
+| Own victim                | After start, while active | All active assignments | No |
+| Own mission               | After start, while active | All active assignments | No |
+| Own teammates             | From lobby configuration | All configured teams | No |
 | Other players' victims    | No     | Yes       | No                |
 | Other players' missions   | No     | Yes       | No                |
 | Opposing team memberships | No     | Yes       | No                |
 | Public player statuses    | Yes    | Yes       | Yes               |
-| Kill counts during game   | No     | Yes       | No                |
-| Killer identities         | No     | Yes       | No                |
+| Kill counts during game   | No     | No        | No                |
+| Elimination report relationships | Involved reports only | All reports | No |
 | Remaining time            | Yes    | Yes       | Yes               |
 
-A *board link viewer* is anyone who opens the public board link (`#/board/<gameId>`), the full-screen live board for a TV or phone; organizers and joined players can copy the link from their game view. They need no account and can only read names, status, the active count and the timer.
+A *board link viewer* is anyone who opens the public board link
+(`#/board/<gameId>`), the full-screen live board for a TV or phone; organizers
+and joined players can copy the link from their game view. They need no account.
+The implemented API contract is
+`GET /api/board/{gameId}` plus `boards/{gameId}/updates`: game ID/name/status,
+player IDs/names/display numbers/status, active count and timer only. It contains
+no photos, assignments, teams, reports, scores or recap. The board UI shows
+names, status, the active count and timer; display numbers remain in the API
+but are not shown on tiles. Photo display is #41, and public post-game recap
+is #42.
 
-All participants can see the public Kill Board, but it must not reveal any secret relationships.
+This table describes current permissions during play. Organizer access does not
+grant in-game kill totals; any proposed permission expansion needs a separate
+decision. Post-game scores are available to organizers and players through the
+authenticated result/recap APIs, never through the live board payload.
+
+All participants and the organizer can read the authenticated Kill Board.
+Its timestamp-free projection does not replace privacy checks on the broader
+game view, whose shared participant entries also include elimination timestamps.
 
 ### Privacy Requirements
 
@@ -299,8 +329,8 @@ All participants can see the public Kill Board, but it must not reveal any secre
 - Assign teams manually or randomly
 - Configure missions and victim assignments
 - Enable optional game timers
-- Start, pause, and end games
-- Manage disputes
+- Start and end games (pause/resume is planned)
+- View reports (dispute resolution is planned)
 
 ### Secret Assignments
 
@@ -313,7 +343,7 @@ All participants can see the public Kill Board, but it must not reveal any secre
 ### Eliminations and Withdrawals
 
 - Require confirmation from both killer and victim
-- Handle disputes
+- View involved reports; organizer dispute resolution is planned
 - Automatically update assignments
 - Support confirmed voluntary withdrawals
 - Maintain private elimination history

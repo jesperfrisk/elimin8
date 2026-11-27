@@ -7,6 +7,10 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ### Fixed
 
+- Reconcile Phase 1 documentation with shipped behavior (#46): correct
+  usage and privacy descriptions for teams, timers, kill counts and board
+  access, and add a [capability-by-capability verification checklist](ROADMAP.md#phase-1-implementation-and-verification)
+  with merged implementation, regression tests and remaining runtime checks.
 - After a team game starts, a player's own-team list (`me.team.members`) no
   longer includes invitees who never joined (#51). Lobby setup can assign
   unjoined invitees to a team, but starting freezes the roster to the joined

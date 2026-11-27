@@ -41,7 +41,8 @@ make frontend-build
 | `GamePage.jsx` | Game frame shared by both roles (heading, stats, management code) and the panel slot |
 | `OrganizerView.jsx` | Organizer roster, start/end, add players, private codes, lobby missions |
 | `PlayerView.jsx` | Player status card, victim/mission, eliminations |
-| `LobbyMissions.jsx`, `Eliminations.jsx` | Existing feature panels |
+| `LobbyMissions.jsx`, `Eliminations.jsx` | Mission setup and elimination confirmation |
+| `Teams.jsx`, `Timer.jsx`, `Withdrawal.jsx`, `KillBoard.jsx`, `Results.jsx` | Shipped Phase 1 team setup, countdown, confirmed withdrawal, authenticated status board and final results |
 | `slots.jsx` | Extension points for new panels (below) |
 | `common.jsx` | Shared helpers: `PageHeading`, `CopyButton`, `formatDate` |
 | `Board.jsx`, `board.css`, `boardLayout.js` | Public live board (`#/board/<gameId>`), its skin, and pure layout helpers (tile fitting, initials, avatar colour) |
@@ -49,7 +50,7 @@ make frontend-build
 
 ### Adding a panel
 
-New game features (teams, withdrawals, Kill Board, timer, results) are added as their own file plus two lines in `src/slots.jsx`: an import and one entry in the array for the phase where the panel appears.
+Game features use their own component plus an import and an entry in `src/slots.jsx` for each phase where the panel appears. Teams, withdrawals, Kill Board, timer and results already use these slots.
 
 | Array | Rendered when | Typical use |
 | --- | --- | --- |
@@ -57,15 +58,15 @@ New game features (teams, withdrawals, Kill Board, timer, results) are added as 
 | `inGamePanels` | `game.status === "active"` | withdrawal, Kill Board, countdown |
 | `gameOverPanels` | `game.status === "ended"` | results |
 
-Panels render below the existing game content for every viewer and receive `game`, `access`, `action` and `busy` (see the comment in `slots.jsx`). A panel checks `access.role` itself and returns `null` when it has nothing to show. The arrays are empty today, so they add no markup.
+Panels render below the existing game content for every viewer and receive `game`, `access`, `action` and `busy` (see the comment in `slots.jsx`). A panel checks `access.role` itself and returns `null` when it has nothing to show. Lobby panels are Timer and Teams; active-game panels add Withdrawal and KillBoard; the ended-game slot renders Results.
 
-## Planned Experience
+## Available Experience
 
 - Create games and configure rules, missions, teams, and optional timers.
 - Join a game using an invitation link or game code.
-- View private targets, missions, and teammates once a game starts.
+- View private targets and missions once a game starts; view own teammates as soon as lobby teams are configured. Starting freezes the teammate list to included participants, excluding unjoined invitees (#51).
 - Report and confirm eliminations, and confirm voluntary withdrawals.
-- View the public Kill Board with player statuses, active player count, and remaining time.
+- View the authenticated Kill Board with player statuses and a count for each status; a separate timer panel shows remaining time when enabled.
 - Provide organizer controls and show final results after the game ends.
 
 ## API and Privacy
@@ -73,6 +74,14 @@ Panels render below the existing game content for every viewer and receive `game
 The backend is authoritative for game state, permissions, assignments, scores, and timers. The frontend must use responses scoped to the current user's access. Hiding information in the UI is not a substitute for server-side authorization.
 
 The public Kill Board must not reveal targets, missions, teams, killer identities, or in-game kill counts.
+
+The current in-game Kill Board requires organizer/player access and returns only
+IDs, names and status. Authenticated game views also expose optional elimination
+timestamps on shared participant entries. Privacy verification must check both
+payloads. Organizers receive no in-game kill totals either; scores appear only
+in post-game result/recap responses. The anonymous board API is implemented in
+#36, and the `#/board/<gameId>` page is implemented in #39. Public recap access
+and its UI remain pending #42.
 
 Any configuration shipped to the browser is public. Database credentials and other secrets must remain on the backend.
 
@@ -91,7 +100,7 @@ The organizer page also includes **Lobby missions**. Paste one mission per line;
 
 Starting requires at least two joined players and one enabled mission. Each participant gets a private mission and a victim. Victims form one shuffled circle: nobody targets themselves, and everyone has exactly one victim and one hunter. All enabled mission entries are used once before reuse, with each round shuffled again. Players see only their own mission and victim after the start, including after reloads or reconnects; organizers see all assignments in the roster. The lobby mission list remains organizer-only.
 
-Active players can confirm an elimination report directly for their assigned target, without selecting or searching for a player. The backend rejects reports against any other player. MQTT triggers the victim's on-screen request naming the killer, with **Accept elimination** and **Decline elimination** actions. The request receives keyboard focus and survives reloads/reconnects. Acceptance transfers the victim's target and mission to the killer; decline leaves assignments unchanged. Pending, accepted, declined, and cancelled reports are visible only to involved players and the organizer. Eliminated players retain game access but cannot report more kills. The final survivor ends the game automatically. Shared participant information exposes only identity and elimination status.
+Active players can confirm an elimination report directly for their assigned target, without selecting or searching for a player. The backend rejects reports against any other player. MQTT triggers the victim's on-screen request naming the killer, with **Accept elimination** and **Decline elimination** actions. The request receives keyboard focus and survives reloads/reconnects. Acceptance transfers the victim's target and mission to the killer; decline leaves assignments unchanged. Pending, accepted, declined, and cancelled reports are visible only to involved players and the organizer. Eliminated players retain game access but cannot report more kills. The final survivor or winning team ends the game automatically. Shared participant information exposes IDs, names, status and optional elimination timestamps.
 
 Active players can withdraw from the game with **Withdraw from game** (`Withdrawal.jsx`, an in-game panel). The first click only requests a short-lived confirmation token and shows a confirmation step; **Confirm withdrawal** is a separate second call, and **Keep playing** (or waiting for the token to expire) changes nothing. A withdrawn player sees a withdrawn screen and no assignments, their hunter inherits their victim and mission, and the roster shows them as Withdrawn. A withdrawal is not a kill.
 
@@ -109,7 +118,7 @@ MQTT.js subscribes to the role-scoped topic returned by the API. Subscribe ackno
 
 ## End-to-end Checks
 
-Start the isolated test stack, then run the suite. `make e2e-up` applies `compose.e2e.yaml`, which raises the backend login limit to 600 attempts per minute for this stack only; the default of 30 is shared by every browser behind Nginx and the full suite exceeds it, causing unrelated HTTP 429 failures. Fixture logins assert a successful response, so a rate-limit failure is reported at the login rather than later.
+Start the isolated test stack, then run the suite. `make e2e-up` applies `compose.e2e.yaml`, which raises the backend per-client login limit to 600 attempts per minute for this stack only; fixture logins from one client can exceed the normal default of 30. Runtime proxy isolation (#52 / PR #66) now identifies separate clients behind configured trusted proxies; it does not exempt repeated browser-fixture logins from one client, and an aggregate endpoint cap still applies. Fixture logins assert a successful response, so a rate-limit failure is reported at the login rather than later. See the [backend README](../backend/README.md) for native/Vite and Compose proxy settings and the outstanding deployed-stack check.
 
 ```sh
 make e2e-up
