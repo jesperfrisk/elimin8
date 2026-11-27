@@ -1,0 +1,447 @@
+package storage
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+)
+
+const privateACL = `<AccessControlPolicy><Owner><ID>owner</ID></Owner><AccessControlList><Grant><Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser"><ID>owner</ID></Grantee><Permission>FULL_CONTROL</Permission></Grant></AccessControlList></AccessControlPolicy>`
+
+func s3Error(w http.ResponseWriter, status int, code string) {
+	w.Header().Set("Content-Type", "application/xml")
+	w.WriteHeader(status)
+	fmt.Fprintf(w, "<Error><Code>%s</Code><Message>test-secret must not escape</Message></Error>", code)
+}
+
+func testStore(t *testing.T, handler http.HandlerFunc) *S3 {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	store, err := NewS3(context.Background(), S3Config{Endpoint: server.URL, Region: "us-east-1", Bucket: "test-photos", AccessKey: "test-access", SecretKey: "test-secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return store
+}
+
+// Return true when a request is initialization rather than an object operation.
+const allPublicBlocked = `<PublicAccessBlockConfiguration><BlockPublicAcls>true</BlockPublicAcls><IgnorePublicAcls>true</IgnorePublicAcls><BlockPublicPolicy>true</BlockPublicPolicy><RestrictPublicBuckets>true</RestrictPublicBuckets></PublicAccessBlockConfiguration>`
+
+func publicBlockInitialization(w http.ResponseWriter, r *http.Request) bool {
+	if !r.URL.Query().Has("publicAccessBlock") {
+		return false
+	}
+	if r.Method == "PUT" {
+		w.WriteHeader(200)
+	} else {
+		fmt.Fprint(w, allPublicBlocked)
+	}
+	return true
+}
+
+func privateInitialization(w http.ResponseWriter, r *http.Request) bool {
+	if publicBlockInitialization(w, r) {
+		return true
+	}
+	if r.Method == "HEAD" && r.URL.Path == "/test-photos" {
+		w.WriteHeader(200)
+		return true
+	}
+	if r.URL.Query().Has("acl") {
+		fmt.Fprint(w, privateACL)
+		return true
+	}
+	if r.URL.Query().Has("policy") {
+		s3Error(w, 404, "NoSuchBucketPolicy")
+		return true
+	}
+	return false
+}
+
+func TestS3PrivateInitialization(t *testing.T) {
+	for _, mode := range []string{"existing", "new", "concurrent"} {
+		t.Run(mode, func(t *testing.T) {
+			created, checkedACL, checkedPolicy := false, false, false
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !strings.Contains(r.Header.Get("Authorization"), "Credential=test-access/") {
+					t.Error("request not signed with explicit credentials")
+				}
+				if r.URL.Path != "/test-photos" {
+					t.Errorf("unexpected path %s", r.URL.Path)
+				}
+				switch {
+				case r.URL.Query().Has("publicAccessBlock"):
+					publicBlockInitialization(w, r)
+				case r.Method == "HEAD":
+					if mode == "existing" {
+						w.WriteHeader(200)
+					} else {
+						w.WriteHeader(404)
+					}
+				case r.Method == "PUT":
+					created = true
+					if r.Header.Get("X-Amz-Acl") != "" {
+						t.Error("must not grant public ACL")
+					}
+					if mode == "concurrent" {
+						s3Error(w, 409, "BucketAlreadyOwnedByYou")
+					} else {
+						w.WriteHeader(200)
+					}
+				case r.URL.Query().Has("acl"):
+					checkedACL = true
+					fmt.Fprint(w, privateACL)
+				case r.URL.Query().Has("policy"):
+					checkedPolicy = true
+					s3Error(w, 404, "NoSuchBucketPolicy")
+				default:
+					t.Error("unexpected request")
+					w.WriteHeader(400)
+				}
+			}))
+			defer server.Close()
+			_, err := NewS3(context.Background(), S3Config{Endpoint: server.URL, Region: "us-east-1", Bucket: "test-photos", AccessKey: "test-access", SecretKey: "test-secret"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if created != (mode != "existing") || !checkedACL || !checkedPolicy {
+				t.Fatalf("initialization incomplete: created %v ACL %v policy %v", created, checkedACL, checkedPolicy)
+			}
+		})
+	}
+}
+
+func TestS3RejectsNonPrivateBucketsAndRedactsFailures(t *testing.T) {
+	for _, mode := range []string{"public-acl", "policy", "denied"} {
+		t.Run(mode, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.URL.Query().Has("publicAccessBlock"):
+					publicBlockInitialization(w, r)
+				case r.Method == "HEAD":
+					if mode == "denied" {
+						s3Error(w, 403, "AccessDenied")
+					} else {
+						w.WriteHeader(200)
+					}
+				case r.URL.Query().Has("acl"):
+					acl := privateACL
+					if mode == "public-acl" {
+						acl = strings.ReplaceAll(acl, "CanonicalUser", "Group")
+					}
+					fmt.Fprint(w, acl)
+				case r.URL.Query().Has("policy"):
+					fmt.Fprint(w, `{"Statement":[{"Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"*"}]}`)
+				default:
+					t.Error("must not change existing permissions")
+					w.WriteHeader(400)
+				}
+			}))
+			defer server.Close()
+			_, err := NewS3(context.Background(), S3Config{Endpoint: server.URL, Region: "us-east-1", Bucket: "test-photos", AccessKey: "test-access", SecretKey: "test-secret"})
+			if err == nil {
+				t.Fatal("unsafe or inaccessible bucket accepted")
+			}
+			if strings.Contains(err.Error(), "test-secret") || strings.Contains(err.Error(), server.URL) {
+				t.Fatal("error leaked credentials or endpoint")
+			}
+		})
+	}
+}
+
+func TestS3PhotoOperationsAndPagination(t *testing.T) {
+	key := "games/GAME/photos/PHOTO"
+	data := []byte("processed-jpeg")
+	stored := false
+	listPages := 0
+	store := testStore(t, func(w http.ResponseWriter, r *http.Request) {
+		if privateInitialization(w, r) {
+			return
+		}
+		if r.URL.Query().Get("list-type") == "2" {
+			listPages++
+			if r.URL.Query().Get("prefix") != "games/GAME/photos/" {
+				t.Error("missing list prefix")
+			}
+			if listPages == 1 {
+				fmt.Fprint(w, `<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>next</NextContinuationToken><Contents><Key>games/GAME/photos/ONE</Key><LastModified>2026-01-02T03:04:05Z</LastModified></Contents></ListBucketResult>`)
+			} else {
+				if r.URL.Query().Get("continuation-token") != "next" {
+					t.Error("missing continuation token")
+				}
+				fmt.Fprint(w, `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>games/GAME/photos/TWO</Key><LastModified>2026-01-02T03:04:06Z</LastModified></Contents></ListBucketResult>`)
+			}
+			return
+		}
+		if r.URL.Path != "/test-photos/"+key {
+			t.Errorf("unexpected object path %s", r.URL.Path)
+		}
+		switch r.Method {
+		case "PUT":
+			if r.Header.Get("Content-Type") != "image/jpeg" {
+				t.Error("wrong object content type")
+			}
+			body, _ := io.ReadAll(r.Body)
+			if !bytes.Equal(body, data) {
+				t.Errorf("wrong object body %q", body)
+			}
+			stored = true
+			w.WriteHeader(200)
+		case "GET":
+			if !stored {
+				s3Error(w, 404, "NoSuchKey")
+				return
+			}
+			w.Write(data)
+		case "DELETE":
+			if !stored {
+				s3Error(w, 404, "NoSuchKey")
+				return
+			}
+			stored = false
+			w.WriteHeader(204)
+		default:
+			t.Error("unexpected operation")
+			w.WriteHeader(400)
+		}
+	})
+	ctx := context.Background()
+	if err := store.Put(ctx, key, data); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Get(ctx, key)
+	if err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("Get = %q, %v", got, err)
+	}
+	if err := store.Delete(ctx, key); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Delete(ctx, key); err != nil {
+		t.Fatal("delete should be idempotent", err)
+	}
+	if _, err := store.Get(ctx, key); !errors.Is(err, ErrNotFound) {
+		t.Fatal("missing object must map to ErrNotFound", err)
+	}
+	objects, err := store.List(ctx, "games/GAME/photos/")
+	if err != nil || len(objects) != 2 || objects[0].Key != "games/GAME/photos/ONE" || objects[1].LastModified != time.Date(2026, 1, 2, 3, 4, 6, 0, time.UTC) || listPages != 2 {
+		t.Fatalf("List = %+v, %v (pages %d)", objects, err, listPages)
+	}
+}
+
+func TestS3BoundsAndInvalidKeys(t *testing.T) {
+	requests := 0
+	store := testStore(t, func(w http.ResponseWriter, r *http.Request) {
+		if privateInitialization(w, r) {
+			return
+		}
+		requests++
+		w.Header().Set("Content-Length", fmt.Sprint(MaxObjectBytes+1))
+		w.WriteHeader(200)
+	})
+	ctx := context.Background()
+	for _, key := range []string{"", "/absolute", "../escape", "games//photo", "games/photo?secret", "games/photo%2fother", "games/photo\\other"} {
+		if err := store.Put(ctx, key, []byte("jpeg")); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("accepted key %q", key)
+		}
+		if _, err := store.Get(ctx, key); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("accepted key %q", key)
+		}
+		if err := store.Delete(ctx, key); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("accepted key %q", key)
+		}
+	}
+	if err := store.Put(ctx, "games/G/photos/P", make([]byte, MaxObjectBytes+1)); !errors.Is(err, ErrInvalid) {
+		t.Fatal("accepted oversize upload")
+	}
+	if err := store.Put(ctx, "games/G/photos/P", nil); !errors.Is(err, ErrInvalid) {
+		t.Fatal("accepted empty upload")
+	}
+	if requests != 0 {
+		t.Fatal("invalid input should not reach object store")
+	}
+	if _, err := store.Get(ctx, "games/G/photos/P"); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("accepted oversized download: %v", err)
+	}
+}
+
+func TestS3ValidatesConfiguration(t *testing.T) {
+	for _, endpoint := range []string{"", "file:///data", "https://user:secret@example.com", "https://example.com?token=secret", "http://example.com/path", "http://example.com#secret"} {
+		_, err := NewS3(context.Background(), S3Config{Endpoint: endpoint, Region: "us-east-1", Bucket: "test-photos", AccessKey: "access", SecretKey: "secret"})
+		if !errors.Is(err, ErrInvalid) {
+			t.Fatalf("accepted endpoint %q", endpoint)
+		}
+	}
+}
+
+func TestS3RejectsBrokenPaginationAndForeignKeys(t *testing.T) {
+	for _, mode := range []string{"repeated-token", "missing-token", "foreign-key"} {
+		t.Run(mode, func(t *testing.T) {
+			pages := 0
+			store := testStore(t, func(w http.ResponseWriter, r *http.Request) {
+				if privateInitialization(w, r) {
+					return
+				}
+				pages++
+				if pages > 3 {
+					t.Error("unbounded pagination")
+					w.WriteHeader(400)
+					return
+				}
+				switch mode {
+				case "repeated-token":
+					fmt.Fprint(w, `<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>repeated</NextContinuationToken></ListBucketResult>`)
+				case "missing-token":
+					fmt.Fprint(w, `<ListBucketResult><IsTruncated>true</IsTruncated></ListBucketResult>`)
+				case "foreign-key":
+					fmt.Fprint(w, `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>games/OTHER/photos/PHOTO</Key><LastModified>2026-01-02T03:04:05Z</LastModified></Contents></ListBucketResult>`)
+				}
+			})
+			if _, err := store.List(context.Background(), "games/GAME/photos/"); err == nil {
+				t.Fatal("accepted incomplete or unsafe listing")
+			}
+		})
+	}
+}
+
+func TestS3RustFSCompatibilityRequiresExplicitProviderAndPublicBlock(t *testing.T) {
+	for _, mode := range []string{"rustfs", "strict-s3", "extra-grant", "partial-control", "block-unsupported", "block-not-persisted"} {
+		t.Run(mode, func(t *testing.T) {
+			publicBlockPut := false
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == "HEAD":
+					w.WriteHeader(200)
+				case r.URL.Query().Has("acl"):
+					acl := strings.ReplaceAll(privateACL, "<ID>owner</ID></Grantee>", "</Grantee>")
+					if mode == "extra-grant" {
+						acl = strings.Replace(acl, "</AccessControlList>", `<Grant><Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser"></Grantee><Permission>FULL_CONTROL</Permission></Grant></AccessControlList>`, 1)
+					}
+					if mode == "partial-control" {
+						acl = strings.ReplaceAll(acl, "FULL_CONTROL", "READ")
+					}
+					fmt.Fprint(w, acl)
+				case r.URL.Query().Has("policy"):
+					s3Error(w, 404, "NoSuchBucketPolicy")
+				case r.URL.Query().Has("publicAccessBlock"):
+					if mode == "block-unsupported" {
+						s3Error(w, 400, "NotImplemented")
+						return
+					}
+					if r.Method == "PUT" {
+						publicBlockPut = true
+						body, _ := io.ReadAll(r.Body)
+						for _, setting := range []string{"BlockPublicAcls", "IgnorePublicAcls", "BlockPublicPolicy", "RestrictPublicBuckets"} {
+							if !bytes.Contains(body, []byte("<"+setting+">true</"+setting+">")) {
+								t.Errorf("public block setting %s not enforced", setting)
+							}
+						}
+						w.WriteHeader(200)
+					} else if mode == "block-not-persisted" {
+						fmt.Fprint(w, strings.ReplaceAll(allPublicBlocked, "true", "false"))
+					} else {
+						fmt.Fprint(w, allPublicBlocked)
+					}
+				default:
+					t.Error("unexpected request")
+					w.WriteHeader(400)
+				}
+			}))
+			defer server.Close()
+			provider := "rustfs"
+			if mode == "strict-s3" {
+				provider = "s3"
+			}
+			_, err := NewS3(context.Background(), S3Config{Endpoint: server.URL, Region: "us-east-1", Bucket: "test-photos", AccessKey: "test-access", SecretKey: "test-secret", Provider: provider})
+			if mode == "rustfs" {
+				if err != nil || !publicBlockPut {
+					t.Fatalf("compatible private RustFS rejected: %v", err)
+				}
+			} else if err == nil {
+				t.Fatal("accepted unsafe provider/ACL/public block")
+			}
+		})
+	}
+}
+
+func TestS3BoundedListingMakesProgressBeyondObjectLimit(t *testing.T) {
+	const total = maxListedObjects + 1
+	const prefix = "games/GAME/photos/"
+	key := func(index int) string { return fmt.Sprintf("%sP%06d", prefix, index) }
+	var mu sync.Mutex
+	removed := map[string]bool{}
+	pages := 0
+	store := testStore(t, func(w http.ResponseWriter, r *http.Request) {
+		if privateInitialization(w, r) {
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		pages++
+		if pages > 103 {
+			t.Error("listing exceeded bounded page requests")
+			w.WriteHeader(400)
+			return
+		}
+		start := 0
+		if token := r.URL.Query().Get("continuation-token"); token != "" {
+			var err error
+			start, err = strconv.Atoi(token)
+			if err != nil {
+				t.Error("invalid continuation token")
+				w.WriteHeader(400)
+				return
+			}
+		}
+		index, count := start, 0
+		var contents strings.Builder
+		for index < total && count < 1000 {
+			objectKey := key(index)
+			index++
+			if removed[objectKey] {
+				continue
+			}
+			count++
+			fmt.Fprintf(&contents, "<Contents><Key>%s</Key><LastModified>2026-01-02T03:04:05Z</LastModified></Contents>", objectKey)
+		}
+		truncated := index < total
+		fmt.Fprintf(w, "<ListBucketResult><IsTruncated>%v</IsTruncated>", truncated)
+		if truncated {
+			fmt.Fprintf(w, "<NextContinuationToken>%d</NextContinuationToken>", index)
+		}
+		fmt.Fprint(w, contents.String(), "</ListBucketResult>")
+	})
+	first, err := store.List(context.Background(), prefix)
+	if err != nil || len(first) != maxListedObjects {
+		t.Fatalf("first bounded batch length=%d error=%v", len(first), err)
+	}
+	if first[0].Key != key(0) || first[len(first)-1].Key != key(maxListedObjects-1) {
+		t.Fatal("first batch missing expected range")
+	}
+	// Simulate deleting the returned batch, then revisit the same prefix.
+	mu.Lock()
+	for _, object := range first {
+		removed[object.Key] = true
+	}
+	mu.Unlock()
+	second, err := store.List(context.Background(), prefix)
+	if err != nil || len(second) != 1 || second[0].Key != key(maxListedObjects) {
+		t.Fatalf("remainder batch length=%d error=%v", len(second), err)
+	}
+	mu.Lock()
+	removed[second[0].Key] = true
+	mu.Unlock()
+	empty, err := store.List(context.Background(), prefix)
+	if err != nil || len(empty) != 0 {
+		t.Fatalf("completed prefix length=%d error=%v", len(empty), err)
+	}
+}

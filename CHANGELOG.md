@@ -12,6 +12,8 @@ Notable changes and the reasoning behind them. Format loosely follows
   field stayed stored and reappeared on the next read. `Save` now `$unset`s
   every absent top-level game field in the same revision-filtered atomic
   update, leaving `publishedRevision` (the outbox) untouched.
+- Player mutations now revalidate the caller inside the revision-checked game write (#50). A report, response, withdrawal request or confirmation authorized before an organizer reset the player code, or whose access expired while it waited, is rejected as unauthorized and changes nothing, including after a revision-conflict retry. Actions committed before the reset stay valid, and new credentials work. Fresh requests, game scoping, organizer permissions and MQTT revocation are unchanged.
+
 - `MONGODB_URI` in `compose.yaml` pointed the backend at Mongo's
   host-remapped port instead of its container-internal port. Compose port
   mappings (`host:container`) only affect connections from the host; traffic
