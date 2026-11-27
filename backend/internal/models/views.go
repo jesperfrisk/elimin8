@@ -23,6 +23,8 @@ type PlayerView struct {
 
 	// Only ever set on the player's own "me" view.
 	Team *TeamView `json:"team,omitempty"`
+	// Only ever set on the victim's own "me" view after a confirmed elimination.
+	Elimination *EliminationReceipt `json:"elimination,omitempty"`
 }
 
 // WinnerView is the public survival winner: a player or a team, by name only.

@@ -5,6 +5,10 @@ Notable changes and the reasoning behind them. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- Persistent private elimination notice (#74): after a victim accepts an elimination, their own game view gains `me.elimination` (`killer`, `mission`, `confirmedAt`) and the player page shows an "Elimination notice" panel that survives reloads and game-ending kills. The mission is snapshotted at acceptance (before the transfer) and never serialized in the shared `eliminations` list; legacy eliminations report `mission: null`. No other role sees the killer/mission relationship, and no push, service worker or OS notification is added. Existing dynamic-target and team-repair tests still pass; the ROADMAP notification item is ticked.
+
 ### Fixed
 
 - Reconcile Phase 1 documentation with shipped behavior (#46): correct
