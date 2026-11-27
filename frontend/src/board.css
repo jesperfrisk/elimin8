@@ -232,21 +232,6 @@
   color: #fff;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
-.tile-number {
-  position: absolute;
-  top: calc(var(--tile) * 0.05);
-  left: calc(var(--tile) * 0.05);
-  min-width: 2.1em;
-  padding: 0.12em 0.45em;
-  border-radius: 0.5em;
-  font-size: max(11px, calc(var(--tile) * 0.13));
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  text-align: center;
-  color: #17240e;
-  background: var(--accent);
-}
 .tile-caption {
   background: var(--board-strip);
   padding: calc(var(--tile) * 0.04) calc(var(--tile) * 0.06) calc(var(--tile) * 0.05);
@@ -256,7 +241,7 @@
   min-width: 0;
 }
 .tile-name {
-  font-size: max(12px, calc(var(--tile) * 0.115));
+  font-size: max(13px, calc(var(--tile) * 0.13));
   font-weight: 700;
   line-height: 1.15;
   color: var(--board-ink);
@@ -277,8 +262,7 @@
   border-color: var(--eliminated);
   box-shadow: none;
 }
-.tile.eliminated .tile-face,
-.tile.eliminated .tile-number {
+.tile.eliminated .tile-face {
   filter: grayscale(1) brightness(0.55);
 }
 .tile.eliminated .tile-name {
@@ -304,12 +288,8 @@
   border-color: var(--board-grey);
   box-shadow: none;
 }
-.tile.withdrawn .tile-face,
-.tile.withdrawn .tile-number {
+.tile.withdrawn .tile-face {
   filter: grayscale(1) brightness(0.75);
-}
-.tile.withdrawn .tile-number {
-  background: var(--board-grey);
 }
 .tile.withdrawn .tile-name {
   color: var(--board-grey);

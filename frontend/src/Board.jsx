@@ -204,12 +204,11 @@ function BoardTimer({ board }) {
 
 function Tile({ player, ended }) {
   const label = statusLabel(player.status, ended);
-  const number = String(player.number).padStart(2, "0");
   return (
     <li
       className={`tile ${player.status}${ended && player.status === "active" ? " survivor" : ""}`}
       style={{ "--hue": avatarHue(player.id) }}
-      aria-label={`${player.name}, number ${player.number}, ${label}`}
+      aria-label={`${player.name}, ${label}`}
       title={player.name}
       data-status={player.status}
     >
@@ -219,7 +218,6 @@ function Tile({ player, ended }) {
           <span className="tile-initials">{initials(player.name)}</span>
         </div>
       </div>
-      <span className="tile-number" aria-hidden="true">{number}</span>
       <div className="tile-caption" aria-hidden="true">
         <span className="tile-name">{player.name}</span>
         <span className="tile-status">{label}</span>

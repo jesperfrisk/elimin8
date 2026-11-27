@@ -97,7 +97,7 @@ test("public board: lobby, live elimination and withdrawal, ended state, 404 and
     await expect(tiles).toHaveCount(4);
     await expect(page.getByTestId("board-active")).toContainText("4");
     for (const name of ["Alice", "Bob", "Charlie", "Dana"]) {
-      await expect(page.getByRole("listitem", { name: new RegExp(`^${name}, number \\d+, Active$`) })).toBeVisible();
+      await expect(page.getByRole("listitem", { name: new RegExp(`^${name}, Active$`) })).toBeVisible();
     }
 
     // An elimination updates the board live; a withdrawal looks and reads differently.
