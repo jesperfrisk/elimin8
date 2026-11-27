@@ -65,7 +65,7 @@ Panels render below the existing game content for every viewer and receive `game
 - Join a game using an invitation link or game code.
 - View private targets and missions once a game starts; view own teammates as soon as lobby teams are configured. Starting freezes the teammate list to included participants, excluding unjoined invitees (#51).
 - Report and confirm eliminations, and confirm voluntary withdrawals.
-- View the authenticated Kill Board with player statuses, alongside the game frame's active player count and remaining time.
+- View the authenticated Kill Board with player statuses and a count for each status; a separate timer panel shows remaining time when enabled.
 - Provide organizer controls and show final results after the game ends.
 
 ## API and Privacy
@@ -112,7 +112,7 @@ MQTT.js subscribes to the role-scoped topic returned by the API. Subscribe ackno
 
 ## End-to-end Checks
 
-Start the isolated test stack, then run the suite. `make e2e-up` applies `compose.e2e.yaml`, which raises the backend login limit to 600 attempts per minute for this stack only; the default of 30 is shared by every browser behind Nginx and the full suite exceeds it, causing unrelated HTTP 429 failures. Fixture logins assert a successful response, so a rate-limit failure is reported at the login rather than later.
+Start the isolated test stack, then run the suite. `make e2e-up` applies `compose.e2e.yaml`, which raises the backend per-client login limit to 600 attempts per minute for this stack only; fixture logins from one client can exceed the normal default of 30. Runtime proxy isolation (#52 / PR #66) now identifies separate clients behind configured trusted proxies; it does not exempt repeated browser-fixture logins from one client, and an aggregate endpoint cap still applies. Fixture logins assert a successful response, so a rate-limit failure is reported at the login rather than later. See the [backend README](../backend/README.md) for native/Vite and Compose proxy settings and the outstanding deployed-stack check.
 
 ```sh
 make e2e-up

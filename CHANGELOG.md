@@ -50,8 +50,9 @@ Notable changes and the reasoning behind them. Format loosely follows
   configured own teams are visible in the lobby. See the
   [Phase 1 verification checklist](ROADMAP.md#phase-1-implementation-and-verification)
   for merged implementation and tests, including resolved acceptance fixes
-  #43, #44 and #45. Runtime freshness (#35) and proxy login isolation (#52)
-  remain tracked follow-ups.
+  #43, #44 and #45. Proxy login isolation (#52) is also merged in PR #66;
+  runtime freshness remains tracked in #35, and deployed proxy configuration
+  verification remains noted in the backend README.
 - Public live board API (#36): `GET /api/board/{gameId}` and an anonymous,
   read-only MQTT topic `boards/{gameId}/updates` expose only names, status, a
   stable display number, the active count and the timer, so a TV can watch a

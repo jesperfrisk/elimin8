@@ -137,7 +137,7 @@ See the [project README](../README.md) for the complete game rules and the [road
 
 ## Current Status
 
-Game lifecycle, organizer rosters, lobby missions, manual/random teams, team-safe private assignments, mutual elimination confirmation, confirmed withdrawals, private kill tracking, individual/team survival winners, optional timers, final results, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented. See the [Phase 1 audit](../ROADMAP.md#phase-1-implementation-and-verification) for code/test evidence and the resolved acceptance follow-ups #43, #44 and #45. Runtime freshness (#35) and normal proxy login limits (#52) remain separate open follow-ups.
+Game lifecycle, organizer rosters, lobby missions, manual/random teams, team-safe private assignments, mutual elimination confirmation, confirmed withdrawals, private kill tracking, individual/team survival winners, optional timers, final results, private-code authentication, authorized MQTT updates, and MongoDB persistence are implemented. See the [Phase 1 audit](../ROADMAP.md#phase-1-implementation-and-verification) for code/test evidence and the resolved acceptance follow-ups #43, #44 and #45. Normal proxy login isolation (#52 / PR #66) is also implemented; deployed-stack verification is still noted below. Runtime freshness (#35) remains an open follow-up.
 
 ## Game API
 

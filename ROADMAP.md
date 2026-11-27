@@ -57,11 +57,16 @@ fixed persisted timer/team clearing ([PR #60](https://github.com/jesperfrisk/eli
 records two consecutive full Playwright runs passing 18/18 after the fixes.
 That is recorded validation evidence, not a new test run by this documentation audit.
 
-Remaining follow-ups are [#35](https://github.com/jesperfrisk/elimin8/issues/35)
-(refresh and identify the affected stale local runtime) and
-[#52](https://github.com/jesperfrisk/elimin8/issues/52) (runtime login limits behind
-trusted proxies). Neither is a missing Phase 1 feature. Phase 2/3 work below
-retains its existing scope.
+[#52](https://github.com/jesperfrisk/elimin8/issues/52) is also resolved by
+[PR #66](https://github.com/jesperfrisk/elimin8/pull/66): normal runtime login
+limits use validated client addresses behind configured trusted proxies, with
+a bounded aggregate safeguard. This is separate from #45's test-only allowance;
+the deployed proxy configuration still needs a live-stack check, as noted in
+the [backend documentation](backend/README.md).
+
+[#35](https://github.com/jesperfrisk/elimin8/issues/35) remains open to refresh
+and identify the affected stale local runtime. It is not a missing Phase 1
+feature. Phase 2/3 work below retains its existing scope.
 
 ## Phase 2: Improved Experience
 
