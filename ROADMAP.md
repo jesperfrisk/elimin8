@@ -96,4 +96,4 @@ Media:
 Developer experience:
 
 - [ ] `make dev`: seed realistic test data (lobbies with believable players)
-- [ ] `make reset`: restore everything to a clean state
+- [x] `make reset`: restore everything to a clean state (#76: removes this Compose project's MongoDB and RustFS volumes without reseeding)
